@@ -1,0 +1,8 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.32,<1
+psutil>=6.0,<7
+aiofiles>=24.1,<25
+python-multipart>=0.0.18,<1
+websockets>=14.0,<15
+pydantic>=2.10,<3
+pydantic-settings>=2.7,<3

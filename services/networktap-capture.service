@@ -1,0 +1,25 @@
+[Unit]
+Description=NetworkTap Packet Capture (tcpdump)
+After=network-online.target
+Wants=network-online.target
+Documentation=https://github.com/networktap
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/networktap.conf
+ExecStart=/opt/networktap/scripts/start_capture.sh
+ExecStop=/opt/networktap/scripts/stop_capture.sh
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/var/log/networktap/capture.log
+StandardError=append:/var/log/networktap/capture.log
+
+# Security hardening
+ProtectSystem=strict
+ReadWritePaths=/var/lib/networktap/captures /var/log/networktap
+PrivateTmp=true
+NoNewPrivileges=false
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

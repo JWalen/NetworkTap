@@ -1,0 +1,18 @@
+[Unit]
+Description=NetworkTap Web Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/networktap.conf
+WorkingDirectory=/opt/networktap/web
+ExecStartPre=+/bin/mkdir -p /var/lib/networktap /var/log/networktap /var/log/suricata /var/log/zeek
+ExecStart=/bin/bash -c 'if [ "${TLS_ENABLED}" = "yes" ] && [ -f "${TLS_CERT}" ] && [ -f "${TLS_KEY}" ]; then exec /opt/networktap/venv/bin/uvicorn app:app --host ${WEB_HOST} --port ${WEB_PORT} --workers 1 --log-level=info --ssl-keyfile=${TLS_KEY} --ssl-certfile=${TLS_CERT}; else exec /opt/networktap/venv/bin/uvicorn app:app --host ${WEB_HOST} --port ${WEB_PORT} --workers 1 --log-level=info; fi'
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/networktap/web.log
+StandardError=append:/var/log/networktap/web.log
+
+[Install]
+WantedBy=multi-user.target

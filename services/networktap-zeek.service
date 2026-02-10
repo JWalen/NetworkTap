@@ -1,0 +1,24 @@
+[Unit]
+Description=NetworkTap Zeek Network Monitor
+After=network-online.target networktap-capture.service
+Wants=network-online.target
+Documentation=https://docs.zeek.org/
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/networktap.conf
+Environment=PATH=/opt/zeek/bin:/usr/local/zeek/bin:/usr/bin:/bin
+
+# Create log directory before starting
+ExecStartPre=/bin/mkdir -p /var/log/networktap
+ExecStartPre=/bin/mkdir -p ${ZEEK_LOG_DIR:-/var/log/zeek}
+
+ExecStart=/opt/networktap/scripts/start_zeek.sh
+
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/var/log/networktap/zeek.log
+StandardError=append:/var/log/networktap/zeek.log
+
+[Install]
+WantedBy=multi-user.target

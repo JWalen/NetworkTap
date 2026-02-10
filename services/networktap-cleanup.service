@@ -1,0 +1,10 @@
+[Unit]
+Description=NetworkTap Storage Cleanup
+After=network.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/networktap.conf
+ExecStart=/opt/networktap/scripts/storage_cleanup.sh
+StandardOutput=append:/var/log/networktap/cleanup.log
+StandardError=append:/var/log/networktap/cleanup.log

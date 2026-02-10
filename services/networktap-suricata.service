@@ -1,0 +1,19 @@
+[Unit]
+Description=NetworkTap Suricata IDS
+After=network-online.target
+Wants=network-online.target
+Documentation=https://suricata.io/documentation/
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/networktap.conf
+ExecStartPre=/usr/bin/suricata -T -c /etc/suricata/suricata.yaml
+ExecStart=/usr/bin/suricata -c /etc/suricata/suricata.yaml --pidfile /run/networktap-suricata.pid --af-packet
+ExecReload=/bin/kill -USR2 $MAINPID
+Restart=on-failure
+RestartSec=10
+PIDFile=/run/networktap-suricata.pid
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+[Unit]
+Description=NetworkTap Console Status Display
+After=systemd-user-sessions.service plymouth-quit-wait.service multi-user.target
+After=networktap-web.service network-online.target
+Wants=network-online.target
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 2
+ExecStart=/opt/networktap/scripts/console_status.sh
+Restart=always
+RestartSec=3
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+Environment=TERM=linux
+
+[Install]
+WantedBy=multi-user.target
+Alias=getty@tty1.service

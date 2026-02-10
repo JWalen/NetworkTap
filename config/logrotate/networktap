@@ -1,0 +1,38 @@
+# NetworkTap Log Rotation
+
+/var/log/networktap/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+    sharedscripts
+    postrotate
+        systemctl reload networktap-web 2>/dev/null || true
+    endscript
+}
+
+/var/log/suricata/eve.json {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+    postrotate
+        systemctl reload networktap-suricata 2>/dev/null || true
+    endscript
+}
+
+/var/log/suricata/suricata.log {
+    weekly
+    rotate 4
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+}

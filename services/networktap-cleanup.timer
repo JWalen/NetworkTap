@@ -1,0 +1,10 @@
+[Unit]
+Description=NetworkTap Storage Cleanup Timer
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=NetworkTap Console Status Display
+After=network-online.target networktap-web.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 5
+ExecStart=/opt/networktap/scripts/update_issue.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
