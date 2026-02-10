@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Configure AI features for NetworkTap
 # Installs Ollama and downloads the recommended model
-set -euo pipefail
+set -e
 
 source /etc/networktap.conf
 
