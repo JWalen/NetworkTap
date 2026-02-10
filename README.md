@@ -1,17 +1,20 @@
 # NetworkTap
 
-**v0.3.0**
+**v1.0.0**
 
-Network tap and monitoring appliance for the OnLogic FR201 (2-NIC Linux platform). Provides passive packet capture, inline bridging, IDS/IPS via Suricata and Zeek, and a modern web dashboard for administration.
+Network tap and monitoring appliance for the OnLogic FR201 (2-NIC Linux platform). Provides passive packet capture, inline bridging, IDS/IPS via Suricata and Zeek, AI-powered anomaly detection, and a modern web dashboard for administration.
 
 ## Features
 
 - **Dual operating modes**: SPAN/mirror (passive monitoring) and inline transparent bridge
 - **Packet capture**: tcpdump with automatic rotation, compression, and retention management
 - **IDS/IPS**: Suricata (signature-based) and Zeek (connection logging and protocol analysis)
+- **AI Anomaly Detection**: Lightweight on-device detection of traffic anomalies, port scans, beaconing, and DNS threats
+- **AI Assistant**: On-device LLM (TinyLLaMA via Ollama) for natural language network analysis
 - **Web dashboard**: Dark-themed SPA with real-time alerts via WebSocket, system monitoring, capture control, and PCAP downloads
 - **Zeek Log Browser**: Browse, filter, and search Zeek logs (conn, dns, http, ssl, files, notice, weird)
 - **Traffic Statistics**: Connection trends, DNS analytics, service distribution, protocol breakdown
+- **Packet Viewer**: In-browser packet inspection with display filters and stream following
 - **PCAP Filtering**: Filter and preview packets before download using BPF expressions
 - **Service management**: systemd units for all daemons with automatic cleanup timers
 - **Firewall hardening**: UFW rules scoped to management interface
@@ -84,6 +87,7 @@ The dashboard is a single-page application with a dark theme, accessible at `htt
 | **Dashboard** | System stats (CPU, memory, disk, uptime), service status, network throughput charts, recent alerts |
 | **Captures** | Start/stop packet capture, view active captures and recent files |
 | **Alerts** | Real-time IDS alerts from Suricata and Zeek with severity filtering |
+| **AI Analysis** | Anomaly detection results, AI assistant chat, feature toggles |
 | **Network** | Interface status, operating mode switcher |
 | **PCAPs** | Browse and download capture files with filtering, storage usage |
 | **Statistics** | Traffic analytics, connection trends, DNS stats, service distribution |
@@ -235,6 +239,45 @@ host 192.168.1.1 and host 10.0.0.1
 
 ---
 
+## AI Features
+
+NetworkTap includes on-device AI capabilities optimized for resource-constrained devices like the Raspberry Pi CM4 (8GB RAM).
+
+### Anomaly Detection
+
+Lightweight statistical analysis that runs continuously to detect:
+
+| Anomaly Type | Description |
+|--------------|-------------|
+| **Volume Anomaly** | Sudden spikes or drops in traffic volume |
+| **Port Scan** | Single source probing multiple ports |
+| **Host Scan** | Single source probing multiple hosts |
+| **Beaconing** | Regular interval connections (C2 indicator) |
+| **DNS DGA** | High-entropy domain names (malware indicator) |
+| **DNS Tunneling** | Excessive TXT queries (data exfiltration) |
+
+Configure sensitivity in `/etc/networktap.conf`:
+- `low` - Fewer false positives, may miss subtle anomalies
+- `medium` - Balanced (default)
+- `high` - More sensitive, may have more false positives
+
+### AI Assistant
+
+Natural language interface powered by TinyLLaMA (via Ollama). Ask questions like:
+- "What unusual activity happened in the last hour?"
+- "Summarize the recent alerts"
+- "What can you tell me about IP 192.168.1.100?"
+
+The assistant has context about recent alerts, traffic statistics, and detected anomalies.
+
+### Resource Usage
+
+- **Anomaly Detection**: ~50MB RAM, runs every 60 seconds
+- **AI Assistant**: ~1.5GB RAM when active (model loaded on-demand)
+- Both features can be toggled on/off via the web UI or config file
+
+---
+
 ## Configuration
 
 Edit `/etc/networktap.conf` (or `/opt/networktap/networktap.conf`) to change settings.
@@ -251,6 +294,10 @@ Key options:
 | `RETENTION_DAYS` | `7` | Pcap retention period |
 | `SURICATA_ENABLED` | `yes` | Enable Suricata IDS |
 | `ZEEK_ENABLED` | `yes` | Enable Zeek |
+| `ANOMALY_DETECTION_ENABLED` | `yes` | Enable AI anomaly detection |
+| `ANOMALY_SENSITIVITY` | `medium` | Detection sensitivity (low/medium/high) |
+| `AI_ASSISTANT_ENABLED` | `yes` | Enable AI assistant |
+| `OLLAMA_MODEL` | `tinyllama` | LLM model for AI assistant |
 
 After editing, restart services:
 

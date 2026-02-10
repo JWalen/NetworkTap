@@ -5,6 +5,60 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-02-10
+
+### Added
+
+- **AI-Powered Anomaly Detection**: Lightweight statistical anomaly detection engine
+  - Volume anomalies (sudden traffic spikes/drops)
+  - Port scan detection (single source hitting multiple ports)
+  - Host scan detection (single source hitting multiple hosts)
+  - Beaconing detection (regular interval connections indicating C2)
+  - DNS anomalies: DGA detection (high entropy domains), DNS tunneling (TXT queries)
+  - Configurable sensitivity levels (low/medium/high)
+  - Real-time anomaly feed on AI Analysis page
+
+- **AI Assistant**: On-device LLM integration via Ollama
+  - TinyLLaMA model optimized for 8GB RAM devices (Pi CM4)
+  - Context-aware responses using recent alerts and traffic data
+  - Natural language queries about network activity
+  - Alert summarization and IP analysis
+  - Toggle on/off to conserve resources
+
+- **AI Analysis Page**: New dashboard page for AI features
+  - Anomaly detection status and recent anomalies list
+  - AI chat interface for network analysis questions
+  - Feature toggle controls
+  - Status indicators for Ollama availability
+
+- **New Configuration Options**:
+  - `ANOMALY_DETECTION_ENABLED` - Enable/disable anomaly detection
+  - `ANOMALY_SENSITIVITY` - Detection sensitivity (low/medium/high)
+  - `ANOMALY_INTERVAL` - Analysis interval in seconds
+  - `AI_ASSISTANT_ENABLED` - Enable/disable AI assistant
+  - `OLLAMA_URL` - Ollama API endpoint
+  - `OLLAMA_MODEL` - LLM model to use (default: tinyllama)
+
+- **New API Endpoints**:
+  - `GET /api/ai/status` - AI feature status
+  - `GET /api/ai/anomalies` - Recent detected anomalies
+  - `POST /api/ai/chat` - AI assistant chat
+  - `POST /api/ai/toggle` - Enable/disable AI features
+
+### Fixed
+
+- **Traffic Statistics Timezone Bug**: Fixed UTC timestamp comparison issue
+  - Zeek logs use UTC timestamps, now correctly compared with UTC cutoffs
+  - Statistics no longer show zeros when data exists
+
+### Changed
+
+- Installation now includes AI setup (Ollama + TinyLLaMA model)
+- Added `.gitattributes` to enforce LF line endings for shell scripts
+- Updated documentation with AI feature details
+
+---
+
 ## [0.3.0] - 2026-02-06
 
 ### Added
