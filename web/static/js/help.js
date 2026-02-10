@@ -94,22 +94,32 @@ const Help = (() => {
 
                     <div class="help-section">
                         <h4 style="color:var(--text-primary);margin:16px 0 8px;">📁 PCAPs</h4>
-                        <p>Browse, search, and download captured packet files. View storage usage and retention settings. Search packets by IP address, port, or protocol.</p>
+                        <p>Browse, search, and download captured packet files. View storage usage and retention settings. Filter packets with BPF expressions before download. In-browser packet viewer with display filters and stream following.</p>
                     </div>
 
                     <div class="help-section">
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">💻 Terminal</h4>
-                        <p>Limited terminal access for diagnostics. Allowed commands include: ip, tcpdump, ss, netstat, ping, traceroute, journalctl, systemctl, df, free, uptime, cat.</p>
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">📋 Zeek Logs</h4>
+                        <p>Browse and search Zeek network logs (conn, dns, http, ssl, files, notice, weird). Filter by IP, port, protocol, or time range. Click any row to see full entry details.</p>
                     </div>
 
                     <div class="help-section">
                         <h4 style="color:var(--text-primary);margin:16px 0 8px;">📈 Statistics</h4>
-                        <p>Traffic analytics from Zeek connection logs. View bandwidth over time, protocol distribution, top source and destination IPs, and top ports.</p>
+                        <p>Traffic analytics from Zeek connection logs. View connection trends over time, DNS analytics (top domains, query types), service distribution, protocol breakdown, and top talkers.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">🤖 AI Analysis</h4>
+                        <p>AI-powered network analysis. Anomaly detection identifies traffic spikes, port scans, beaconing, and DNS threats. AI Assistant answers questions about your network activity using on-device LLM.</p>
                     </div>
 
                     <div class="help-section">
                         <h4 style="color:var(--text-primary);margin:16px 0 8px;">🛡️ Rules</h4>
                         <p>Manage Suricata IDS rules. Browse rule files, search rules, enable/disable individual rules, and reload the rule set.</p>
+                    </div>
+
+                    <div class="help-section">
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">💻 Terminal</h4>
+                        <p>Limited terminal access for diagnostics. Allowed commands include: ip, tcpdump, ss, netstat, ping, traceroute, journalctl, systemctl, df, free, uptime, cat.</p>
                     </div>
 
                     <div class="help-section">
@@ -169,6 +179,51 @@ const Help = (() => {
                 <div class="changelog-content" style="line-height:1.7;color:var(--text-secondary);">
                     
                     <div class="changelog-version">
+                        <h3 style="color:var(--accent);margin:0 0 8px;">v1.0.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
+                        
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added</h4>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li><strong>AI Anomaly Detection</strong> - Lightweight statistical detection of traffic anomalies, port scans, host scans, beaconing (C2), and DNS threats (DGA, tunneling)</li>
+                            <li><strong>AI Assistant</strong> - On-device LLM (TinyLLaMA via Ollama) for natural language network analysis</li>
+                            <li><strong>AI Analysis Page</strong> - Dashboard for anomaly results, AI chat, and feature toggles</li>
+                        </ul>
+
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Fixed</h4>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li><strong>Traffic Statistics</strong> - Fixed timezone bug where UTC timestamps were incorrectly compared</li>
+                        </ul>
+                    </div>
+
+                    <hr style="border:none;border-top:1px solid var(--border-color);margin:24px 0;">
+
+                    <div class="changelog-version">
+                        <h3 style="color:var(--accent);margin:0 0 8px;">v0.3.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
+                        
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added</h4>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li><strong>Packet Viewer</strong> - In-browser packet inspection with protocol coloring, layer details, hex dump</li>
+                            <li><strong>Display Filters</strong> - Wireshark-style filter syntax for packet viewing</li>
+                            <li><strong>Stream Following</strong> - View TCP/UDP stream content in ASCII or hex</li>
+                        </ul>
+                    </div>
+
+                    <hr style="border:none;border-top:1px solid var(--border-color);margin:24px 0;">
+
+                    <div class="changelog-version">
+                        <h3 style="color:var(--accent);margin:0 0 8px;">v0.2.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
+                        
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added</h4>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li><strong>Zeek Log Browser</strong> - Browse, filter, and search Zeek logs (conn, dns, http, ssl, files, notice, weird)</li>
+                            <li><strong>Enhanced Statistics</strong> - Connection trends chart, DNS analytics, service distribution</li>
+                            <li><strong>PCAP Filtering</strong> - BPF filter builder, preview matching packets, download filtered PCAPs</li>
+                            <li><strong>UI Modernization</strong> - Page transitions, skeleton loading, animated values, hover effects</li>
+                        </ul>
+                    </div>
+
+                    <hr style="border:none;border-top:1px solid var(--border-color);margin:24px 0;">
+
+                    <div class="changelog-version">
                         <h3 style="color:var(--accent);margin:0 0 8px;">v0.1.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
                         
                         <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added</h4>
@@ -183,13 +238,6 @@ const Help = (() => {
                             <li><strong>Report Export</strong> - CSV, HTML, and JSON report generation for alerts and statistics</li>
                             <li><strong>Dark/Light Theme</strong> - Toggle between themes with preference persistence</li>
                             <li><strong>Mobile Responsive</strong> - Improved touch targets, hamburger menu, responsive layouts</li>
-                        </ul>
-
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Changed</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li>Updated web service to conditionally enable TLS based on configuration</li>
-                            <li>Enhanced authentication to support both config-based and multi-user modes</li>
-                            <li>Extended configuration file with TLS and syslog settings</li>
                         </ul>
                     </div>
 
