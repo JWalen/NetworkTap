@@ -102,6 +102,7 @@ run_setup_scripts() {
         "configure_firewall.sh"
         "configure_services.sh"
         "configure_console.sh"
+        "configure_ai.sh"
     )
 
     for script in "${scripts[@]}"; do

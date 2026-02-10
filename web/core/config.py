@@ -93,6 +93,14 @@ class NetworkTapConfig:
     log_dir: str = "/var/log/networktap"
     log_level: str = "INFO"
 
+    # AI Features
+    anomaly_detection_enabled: bool = True
+    anomaly_sensitivity: str = "medium"
+    anomaly_interval: int = 60
+    ai_assistant_enabled: bool = True
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "tinyllama"
+
     @classmethod
     def from_file(cls, path: Path | str) -> "NetworkTapConfig":
         raw = _read_conf(Path(path))
@@ -136,6 +144,12 @@ class NetworkTapConfig:
             syslog_format=raw.get("SYSLOG_FORMAT", cls.syslog_format),
             log_dir=raw.get("LOG_DIR", cls.log_dir),
             log_level=raw.get("LOG_LEVEL", cls.log_level),
+            anomaly_detection_enabled=raw.get("ANOMALY_DETECTION_ENABLED", "yes").lower() == "yes",
+            anomaly_sensitivity=raw.get("ANOMALY_SENSITIVITY", cls.anomaly_sensitivity),
+            anomaly_interval=int(raw.get("ANOMALY_INTERVAL", cls.anomaly_interval)),
+            ai_assistant_enabled=raw.get("AI_ASSISTANT_ENABLED", "yes").lower() == "yes",
+            ollama_url=raw.get("OLLAMA_URL", cls.ollama_url),
+            ollama_model=raw.get("OLLAMA_MODEL", cls.ollama_model),
         )
 
     @property

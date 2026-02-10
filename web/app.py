@@ -14,6 +14,7 @@ from core.config import get_config
 from core.auth import verify_credentials
 from core.alert_parser import AlertWatcher
 from core.stats_history import start_collector, stop_collector
+from core.anomaly_detector import get_detector, start_anomaly_detection, stop_anomaly_detection
 from api.routes_system import router as system_router
 from api.routes_capture import router as capture_router
 from api.routes_alerts import router as alerts_router
@@ -28,6 +29,7 @@ from api.routes_backup import router as backup_router
 from api.routes_reports import router as reports_router
 from api.routes_syslog import router as syslog_router
 from api.routes_zeek import router as zeek_router
+from api.routes_ai import router as ai_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,11 +59,22 @@ async def lifespan(app: FastAPI):
     watcher_task = asyncio.create_task(alert_watcher.watch(broadcast_alert))
     app.state.alert_watcher = alert_watcher
 
+    # Start anomaly detection if enabled
+    anomaly_task = None
+    if config.anomaly_detection_enabled:
+        async def anomaly_callback(anomaly: dict):
+            await broadcast_alert({**anomaly, "alert_type": "anomaly"})
+        anomaly_task = asyncio.create_task(start_anomaly_detection(anomaly_callback))
+        logger.info("Anomaly detection started")
+
     yield
 
     # Shutdown
     stop_collector()
+    stop_anomaly_detection()
     watcher_task.cancel()
+    if anomaly_task:
+        anomaly_task.cancel()
     for ws in list(ws_clients):
         try:
             await ws.close()
@@ -96,6 +109,7 @@ app.include_router(backup_router, prefix="/api/backup", tags=["Backup"])
 app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
 app.include_router(syslog_router, prefix="/api/syslog", tags=["Syslog"])
 app.include_router(zeek_router, prefix="/api/zeek", tags=["Zeek"])
+app.include_router(ai_router, prefix="/api/ai", tags=["AI"])
 
 
 async def broadcast_alert(alert: dict):

@@ -12,6 +12,7 @@ const App = (() => {
         stats: Stats,
         rules: Rules,
         zeek: Zeek,
+        ai: AI,
         help: Help,
     };
 
@@ -88,6 +89,7 @@ const App = (() => {
             stats: 'Traffic Statistics',
             rules: 'Suricata Rules',
             zeek: 'Zeek Logs',
+            ai: 'AI Analysis',
             help: 'Help',
         };
         document.getElementById('page-title').textContent = titles[page] || page;
