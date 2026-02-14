@@ -30,6 +30,7 @@ from api.routes_reports import router as reports_router
 from api.routes_syslog import router as syslog_router
 from api.routes_zeek import router as zeek_router
 from api.routes_ai import router as ai_router
+from api.routes_update import router as update_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -110,6 +111,7 @@ app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
 app.include_router(syslog_router, prefix="/api/syslog", tags=["Syslog"])
 app.include_router(zeek_router, prefix="/api/zeek", tags=["Zeek"])
 app.include_router(ai_router, prefix="/api/ai", tags=["AI"])
+app.include_router(update_router, prefix="/api/update", tags=["Update"])
 
 
 async def broadcast_alert(alert: dict):
