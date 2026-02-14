@@ -397,27 +397,7 @@ const WiFi = (() => {
         }
     };
 
-    document.addEventListener('submit', async (e) => {
-        if (e.target.id === 'ap-config-form') {
-            e.preventDefault();
-            try {
-                const config = {
-                    ssid: document.getElementById('ap-ssid').value,
-                    passphrase: document.getElementById('ap-password').value,
-                    channel: parseInt(document.getElementById('ap-channel').value)
-                };
-                
-                const result = await api('/api/wifi/ap/configure', {
-                    method: 'POST',
-                    body: JSON.stringify(config)
-                });
-                
-                toast(result.message, result.success ? 'success' : 'error');
-            } catch (error) {
-                toast('Failed to update config: ' + error.message, 'error');
-            }
-        }
-    });
+    // AP configuration form will be handled in renderAPTab() - removed global listener
 
     // ═══════════════════════════════════════════════════════════════════════
     // PACKET CAPTURE TAB
