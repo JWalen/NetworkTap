@@ -642,3 +642,149 @@ async def wifi_survey_channels(user: Annotated[str, Depends(verify_credentials)]
         }
     except Exception as e:
         return {"channels": [], "error": str(e)}
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Wireless IDS & Client Tracking Endpoints
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@router.get("/ids/alerts")
+async def wifi_ids_alerts(
+    user: Annotated[str, Depends(verify_credentials)],
+    since_minutes: int = 60,
+):
+    """Get wireless IDS alerts."""
+    try:
+        from core.wifi_analyzer import get_analyzer
+        
+        analyzer = get_analyzer()
+        alerts = analyzer.get_alerts(since_minutes=since_minutes)
+        
+        return {
+            "alerts": [
+                {
+                    "timestamp": a.timestamp,
+                    "type": a.alert_type,
+                    "severity": a.severity,
+                    "source": a.source_mac,
+                    "details": a.details,
+                }
+                for a in alerts
+            ],
+            "count": len(alerts),
+        }
+    except Exception as e:
+        return {"alerts": [], "count": 0, "error": str(e)}
+
+
+@router.get("/ids/rogue-aps")
+async def wifi_ids_rogue_aps(user: Annotated[str, Depends(verify_credentials)]):
+    """Get detected rogue access points."""
+    try:
+        from core.wifi_analyzer import get_analyzer
+        
+        analyzer = get_analyzer()
+        rogues = analyzer.get_rogue_aps()
+        
+        return {
+            "rogue_aps": [
+                {
+                    "bssid": ap.bssid,
+                    "ssid": ap.ssid,
+                    "channel": ap.channel,
+                    "first_seen": ap.first_seen,
+                    "reason": ap.reason,
+                    "severity": ap.severity,
+                    "signal": ap.signal,
+                }
+                for ap in rogues
+            ],
+            "count": len(rogues),
+        }
+    except Exception as e:
+        return {"rogue_aps": [], "count": 0, "error": str(e)}
+
+
+@router.post("/ids/scan-rogues")
+async def wifi_ids_scan_rogues(user: Annotated[str, Depends(verify_credentials)]):
+    """Scan for rogue APs using latest survey data."""
+    try:
+        import json
+        from core.wifi_analyzer import get_analyzer
+        
+        survey_path = Path(SURVEY_FILE)
+        if not survey_path.exists():
+            return {"success": False, "message": "No survey data. Run a survey first."}
+        
+        survey_data = json.loads(survey_path.read_text())
+        analyzer = get_analyzer()
+        rogues = analyzer.detect_rogue_aps_from_survey(survey_data)
+        
+        return {
+            "success": True,
+            "message": f"Found {len(rogues)} potential rogue APs",
+            "rogues_detected": len(rogues),
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@router.get("/clients/list")
+async def wifi_clients_list(user: Annotated[str, Depends(verify_credentials)]):
+    """Get tracked wireless clients."""
+    try:
+        from core.wifi_analyzer import get_analyzer
+        
+        analyzer = get_analyzer()
+        clients = analyzer.get_clients()
+        
+        return {
+            "clients": [
+                {
+                    "mac": c.mac,
+                    "vendor": c.vendor,
+                    "first_seen": c.first_seen,
+                    "last_seen": c.last_seen,
+                    "probe_ssids": c.probe_ssids,
+                    "connected_to": c.connected_to,
+                    "signal_strength": c.signal_strength,
+                    "packet_count": c.packet_count,
+                }
+                for c in clients
+            ],
+            "count": len(clients),
+        }
+    except Exception as e:
+        return {"clients": [], "count": 0, "error": str(e)}
+
+
+@router.get("/clients/stats")
+async def wifi_clients_stats(user: Annotated[str, Depends(verify_credentials)]):
+    """Get client tracking statistics."""
+    try:
+        from core.wifi_analyzer import get_analyzer
+        
+        analyzer = get_analyzer()
+        stats = analyzer.get_client_stats()
+        
+        return stats
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/analyze")
+async def wifi_analyze(user: Annotated[str, Depends(verify_credentials)]):
+    """Analyze latest WiFi capture for IDS and client tracking."""
+    try:
+        from core.wifi_analyzer import get_analyzer
+        
+        analyzer = get_analyzer()
+        result = await analyzer.analyze_latest_capture()
+        
+        return {
+            "success": "error" not in result,
+            "analysis": result,
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
