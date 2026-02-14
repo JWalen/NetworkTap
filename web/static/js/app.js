@@ -13,6 +13,8 @@ const App = (() => {
         rules: Rules,
         zeek: Zeek,
         ai: AI,
+        backup: Backup,
+        users: Users,
         help: Help,
     };
 
