@@ -14,6 +14,7 @@ router = APIRouter()
 
 WIFI_SCRIPT = "/opt/networktap/scripts/wifi.sh"
 AP_SCRIPT = "/opt/networktap/scripts/ap.sh"
+WIFI_CAPTURE_SCRIPT = "/opt/networktap/scripts/wifi_capture.sh"
 
 
 def _find_wifi_iface() -> str | None:
@@ -54,6 +55,23 @@ async def _run_ap(args: list[str], timeout: int = 15) -> tuple[int, str, str]:
     """Run ap.sh asynchronously for Access Point management."""
     proc = await asyncio.create_subprocess_exec(
         AP_SCRIPT, *args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.communicate()
+        return 1, "", "Command timed out"
+
+    return proc.returncode or 0, stdout.decode(errors="replace"), stderr.decode(errors="replace")
+
+
+async def _run_wifi_capture(args: list[str], timeout: int = 20) -> tuple[int, str, str]:
+    """Run wifi_capture.sh asynchronously for monitor mode capture."""
+    proc = await asyncio.create_subprocess_exec(
+        WIFI_CAPTURE_SCRIPT, *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -354,3 +372,137 @@ async def ap_configure(
         }
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WiFi Packet Capture (Monitor Mode) Endpoints
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@router.get("/capture/status")
+async def wifi_capture_status(user: Annotated[str, Depends(verify_credentials)]):
+    """Get WiFi packet capture status."""
+    try:
+        rc, stdout, stderr = await _run_wifi_capture(["status"], timeout=10)
+        
+        status_info = {
+            "enabled": False,
+            "running": False,
+            "channel": None,
+            "max_size_mb": None,
+            "max_files": None,
+            "file_count": 0,
+            "total_size": None,
+        }
+        
+        current_section = None
+        for line in stdout.strip().splitlines():
+            line = line.strip()
+            if not line or "━" in line:
+                continue
+            
+            if "Configuration:" in line:
+                current_section = "config"
+            elif "Capture:" in line:
+                current_section = "capture"
+            elif "Storage:" in line:
+                current_section = "storage"
+            elif ":" in line and current_section:
+                key, _, value = line.partition(":")
+                key = key.strip().lower()
+                value = value.strip()
+                
+                if current_section == "config":
+                    if key == "enabled":
+                        status_info["enabled"] = value == "yes"
+                    elif key == "channel":
+                        status_info["channel"] = value
+                    elif key == "max size":
+                        status_info["max_size_mb"] = value.replace("MB", "").strip()
+                    elif key == "max files":
+                        status_info["max_files"] = value
+                elif current_section == "capture":
+                    if key == "status":
+                        status_info["running"] = value == "RUNNING"
+                elif current_section == "storage":
+                    if key == "files":
+                        status_info["file_count"] = int(value) if value.isdigit() else 0
+                    elif key == "total size":
+                        status_info["total_size"] = value
+        
+        return status_info
+    except Exception as e:
+        return {"enabled": False, "running": False, "error": str(e)}
+
+
+@router.post("/capture/start")
+async def wifi_capture_start(user: Annotated[str, Depends(verify_credentials)]):
+    """Start WiFi packet capture in monitor mode."""
+    try:
+        rc, stdout, stderr = await _run_wifi_capture(["start"], timeout=30)
+        success = rc == 0 and "started" in stdout.lower()
+        
+        return {
+            "success": success,
+            "message": "WiFi capture started" if success else (stderr or "Failed to start capture"),
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@router.post("/capture/stop")
+async def wifi_capture_stop(user: Annotated[str, Depends(verify_credentials)]):
+    """Stop WiFi packet capture."""
+    try:
+        rc, stdout, stderr = await _run_wifi_capture(["stop"], timeout=20)
+        success = rc == 0
+        return {
+            "success": success,
+            "message": "WiFi capture stopped" if success else (stderr or "Failed to stop capture"),
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@router.post("/capture/restart")
+async def wifi_capture_restart(user: Annotated[str, Depends(verify_credentials)]):
+    """Restart WiFi packet capture."""
+    try:
+        rc, stdout, stderr = await _run_wifi_capture(["restart"], timeout=40)
+        success = rc == 0 and "started" in stdout.lower()
+        return {
+            "success": success,
+            "message": "WiFi capture restarted" if success else (stderr or "Failed to restart capture"),
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@router.get("/capture/list")
+async def wifi_capture_list(user: Annotated[str, Depends(verify_credentials)]):
+    """List WiFi capture files."""
+    try:
+        rc, stdout, stderr = await _run_wifi_capture(["list"], timeout=10)
+        
+        captures = []
+        for line in stdout.strip().splitlines():
+            line = line.strip()
+            if not line or "━" in line or "WiFi Capture Files:" in line or "(No captures" in line:
+                continue
+            
+            # Parse format: "2024-01-15 10:30:00  100.50 MB  wifi-20240115-103000.pcap"
+            parts = line.split()
+            if len(parts) >= 4:
+                date_part = f"{parts[0]} {parts[1]}"
+                size_part = parts[2]
+                filename = parts[3] if len(parts) == 4 else " ".join(parts[3:])
+                
+                captures.append({
+                    "filename": filename,
+                    "size": size_part,
+                    "date": date_part,
+                })
+        
+        return {"captures": captures, "count": len(captures)}
+    except Exception as e:
+        return {"captures": [], "count": 0, "error": str(e)}
