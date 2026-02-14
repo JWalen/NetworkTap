@@ -17,11 +17,11 @@
                 <span class="sidebar-version">v1.0.0</span>
             </div>
         </div>
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
             <!-- Monitoring Section -->
             <div class="nav-section-label">Monitoring</div>
-            <a href="#dashboard" class="nav-item active" data-page="dashboard">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <a href="#dashboard" class="nav-item active" data-page="dashboard" role="menuitem">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <rect x="3" y="3" width="7" height="7" rx="1"/>
                     <rect x="14" y="3" width="7" height="7" rx="1"/>
                     <rect x="3" y="14" width="7" height="7" rx="1"/>
@@ -29,8 +29,8 @@
                 </svg>
                 <span class="nav-label">Dashboard</span>
             </a>
-            <a href="#captures" class="nav-item" data-page="captures">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <a href="#captures" class="nav-item" data-page="captures" role="menuitem">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <circle cx="12" cy="12" r="10"/>
                     <circle cx="12" cy="12" r="3"/>
                     <line x1="12" y1="2" x2="12" y2="6"/>
@@ -40,17 +40,17 @@
                 </svg>
                 <span class="nav-label">Captures</span>
             </a>
-            <a href="#alerts" class="nav-item" data-page="alerts">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <a href="#alerts" class="nav-item" data-page="alerts" role="menuitem">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                     <line x1="12" y1="9" x2="12" y2="13"/>
                     <line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
                 <span class="nav-label">Alerts</span>
-                <span class="nav-badge" id="alert-badge" hidden>0</span>
+                <span class="nav-badge" id="alert-badge" hidden aria-live="polite">0</span>
             </a>
-            <a href="#network" class="nav-item" data-page="network">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <a href="#network" class="nav-item" data-page="network" role="menuitem">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
                     <line x1="1" y1="10" x2="23" y2="10"/>
                 </svg>
@@ -59,8 +59,8 @@
 
             <!-- Data & Logs Section -->
             <div class="nav-section-label">Data & Logs</div>
-            <a href="#pcaps" class="nav-item" data-page="pcaps">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <a href="#pcaps" class="nav-item" data-page="pcaps" role="menuitem">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/>
                     <line x1="16" y1="13" x2="8" y2="13"/>
@@ -68,8 +68,8 @@
                 </svg>
                 <span class="nav-label">PCAPs</span>
             </a>
-            <a href="#zeek" class="nav-item" data-page="zeek">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <a href="#zeek" class="nav-item" data-page="zeek" role="menuitem">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/>
                     <line x1="16" y1="13" x2="8" y2="13"/>
