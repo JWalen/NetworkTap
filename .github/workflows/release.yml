@@ -1,0 +1,183 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update VERSION file
+        run: |
+          echo "${{ steps.version.outputs.version }}" > VERSION
+          
+      - name: Create release tarball
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          RELEASE_NAME="networktap-$VERSION"
+          
+          # Create release directory
+          mkdir -p "dist/$RELEASE_NAME"
+          
+          # Copy files
+          cp -r config docs scripts services setup web "$RELEASE_NAME"/
+          cp install.sh uninstall.sh networktap.conf VERSION README.md CHANGELOG.md "$RELEASE_NAME"/
+          
+          # Create tarball
+          tar czf "dist/$RELEASE_NAME.tar.gz" "$RELEASE_NAME"
+          
+          # Create checksums
+          cd dist
+          sha256sum "$RELEASE_NAME.tar.gz" > "$RELEASE_NAME.tar.gz.sha256"
+          md5sum "$RELEASE_NAME.tar.gz" > "$RELEASE_NAME.tar.gz.md5"
+
+      - name: Create DEB package structure
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_NAME="networktap_${VERSION}_all"
+          mkdir -p "dist/$PKG_NAME/DEBIAN"
+          mkdir -p "dist/$PKG_NAME/opt/networktap"
+          mkdir -p "dist/$PKG_NAME/etc"
+          mkdir -p "dist/$PKG_NAME/usr/lib/systemd/system"
+          
+          # Copy application files
+          cp -r scripts services setup web "dist/$PKG_NAME/opt/networktap/"
+          cp install.sh uninstall.sh "dist/$PKG_NAME/opt/networktap/"
+          
+          # Copy config
+          cp networktap.conf "dist/$PKG_NAME/etc/networktap.conf"
+          
+          # Copy systemd services
+          cp services/*.service services/*.timer "dist/$PKG_NAME/usr/lib/systemd/system/" || true
+          
+          # Create control file
+          cat > "dist/$PKG_NAME/DEBIAN/control" <<EOF
+          Package: networktap
+          Version: $VERSION
+          Section: net
+          Priority: optional
+          Architecture: all
+          Depends: python3 (>= 3.9), python3-pip, tcpdump, suricata, zeek, systemd
+          Maintainer: NetworkTap Team
+          Description: Network Tap Appliance
+           NetworkTap is a network monitoring and intrusion detection appliance
+           combining passive packet capture (tcpdump), IDS (Suricata + Zeek),
+           and a web dashboard for the OnLogic FR201 platform.
+          EOF
+          
+          # Create postinst script
+          cat > "dist/$PKG_NAME/DEBIAN/postinst" <<'EOF'
+          #!/bin/bash
+          set -e
+          if [ "$1" = "configure" ]; then
+              cd /opt/networktap
+              pip3 install -r web/requirements.txt
+              systemctl daemon-reload
+              echo "NetworkTap installed. Run: sudo bash /opt/networktap/install.sh"
+          fi
+          exit 0
+          EOF
+          chmod 755 "dist/$PKG_NAME/DEBIAN/postinst"
+          
+          # Build DEB package
+          dpkg-deb --build "dist/$PKG_NAME"
+          
+          # Create checksums
+          cd dist
+          sha256sum "$PKG_NAME.deb" > "$PKG_NAME.deb.sha256"
+          md5sum "$PKG_NAME.deb" > "$PKG_NAME.deb.md5"
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Extract changelog section for this version
+          if grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | sed '$d' > dist/release-notes.md
+          else
+            echo "Release $VERSION" > dist/release-notes.md
+            echo "" >> dist/release-notes.md
+            echo "See CHANGELOG.md for details." >> dist/release-notes.md
+          fi
+          
+          # Add installation instructions
+          cat >> dist/release-notes.md <<'EOF'
+          
+          ## Installation
+          
+          ### From Tarball
+          ```bash
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/networktap-${{ steps.version.outputs.version }}.tar.gz
+          tar xzf networktap-${{ steps.version.outputs.version }}.tar.gz
+          cd networktap-${{ steps.version.outputs.version }}
+          sudo bash install.sh
+          ```
+          
+          ### From DEB Package (Debian/Ubuntu)
+          ```bash
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/networktap_${{ steps.version.outputs.version }}_all.deb
+          sudo dpkg -i networktap_${{ steps.version.outputs.version }}_all.deb
+          sudo bash /opt/networktap/install.sh
+          ```
+          
+          ## Verification
+          
+          Verify checksums after download:
+          ```bash
+          sha256sum -c networktap-${{ steps.version.outputs.version }}.tar.gz.sha256
+          ```
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: NetworkTap ${{ steps.version.outputs.version }}
+          body_path: dist/release-notes.md
+          files: |
+            dist/networktap-${{ steps.version.outputs.version }}.tar.gz
+            dist/networktap-${{ steps.version.outputs.version }}.tar.gz.sha256
+            dist/networktap-${{ steps.version.outputs.version }}.tar.gz.md5
+            dist/networktap_${{ steps.version.outputs.version }}_all.deb
+            dist/networktap_${{ steps.version.outputs.version }}_all.deb.sha256
+            dist/networktap_${{ steps.version.outputs.version }}_all.deb.md5
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.sha256
+            dist/*.md5

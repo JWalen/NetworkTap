@@ -230,19 +230,6 @@ def set_mgmt_network_config(
 
 
 def switch_mode(new_mode: str) -> dict:
-    """Get current operating mode."""
-    config = get_config()
-    return {
-        "mode": config.mode,
-        "nic1": config.nic1,
-        "nic2": config.nic2,
-        "bridge_name": config.bridge_name,
-        "capture_interface": config.capture_interface,
-        "management_interface": config.management_interface,
-    }
-
-
-def switch_mode(new_mode: str) -> dict:
     """Switch between SPAN and bridge mode."""
     if new_mode not in ("span", "bridge"):
         return {"success": False, "message": f"Invalid mode: {new_mode}"}

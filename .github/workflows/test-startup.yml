@@ -1,0 +1,206 @@
+name: Test Application Startup
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test-backend-startup:
+    name: Test FastAPI Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd web
+          pip install -r requirements.txt
+
+      - name: Test app import
+        run: |
+          cd web
+          python3 -c "import app; print('✓ App imports successfully')"
+
+      - name: Start server in background
+        run: |
+          cd web
+          python3 -m uvicorn app:app --host 127.0.0.1 --port 8445 &
+          echo $! > server.pid
+          sleep 5
+
+      - name: Test health endpoint
+        run: |
+          curl -f http://127.0.0.1:8445/health || exit 1
+          echo "✓ Health endpoint responding"
+
+      - name: Test API with auth
+        run: |
+          # Test system status endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u admin:networktap http://127.0.0.1:8445/api/system/status)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✓ System status API working"
+          else
+            echo "✗ System status API failed with code $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Test auth rejection
+        run: |
+          # Test that bad credentials are rejected
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u wrong:wrong http://127.0.0.1:8445/api/system/status)
+          if [ "$HTTP_CODE" = "401" ]; then
+            echo "✓ Authentication correctly rejects invalid credentials"
+          else
+            echo "✗ Authentication should reject invalid credentials"
+            exit 1
+          fi
+
+      - name: Test multiple API endpoints
+        run: |
+          # Test various endpoints
+          ENDPOINTS=(
+            "/api/config"
+            "/api/capture/status"
+            "/api/alerts/suricata?limit=10"
+            "/api/system/interfaces"
+          )
+          
+          for endpoint in "${ENDPOINTS[@]}"; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -u admin:networktap "http://127.0.0.1:8445$endpoint")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ $endpoint responding"
+            else
+              echo "✗ $endpoint failed with code $HTTP_CODE"
+              exit 1
+            fi
+          done
+
+      - name: Test static files
+        run: |
+          # Test that static files are served
+          curl -f http://127.0.0.1:8445/ > /dev/null
+          echo "✓ Index page loads"
+          
+          curl -f http://127.0.0.1:8445/static/js/app.js > /dev/null
+          echo "✓ Static JS files accessible"
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f web/server.pid ]; then
+            kill $(cat web/server.pid) || true
+          fi
+
+  test-config-loading:
+    name: Test Configuration Loading
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd web
+          pip install -r requirements.txt
+
+      - name: Test config from file
+        run: |
+          cd web
+          python3 -c "
+          from core.config import get_config
+          c = get_config()
+          assert c.mode in ('span', 'bridge'), f'Invalid mode: {c.mode}'
+          assert c.web_port > 0, 'Invalid web port'
+          assert c.web_user, 'Web user not set'
+          assert c.web_pass, 'Web password not set'
+          assert c.capture_interface, 'Capture interface not set'
+          print(f'✓ Config validation passed')
+          print(f'  Mode: {c.mode}')
+          print(f'  Web Port: {c.web_port}')
+          print(f'  Capture Interface: {c.capture_interface}')
+          "
+
+  test-shell-scripts:
+    name: Test Shell Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test script syntax
+        run: |
+          # Check all shell scripts for syntax errors
+          for script in scripts/*.sh setup/*.sh *.sh; do
+            if [ -f "$script" ]; then
+              echo "Checking $script..."
+              bash -n "$script"
+            fi
+          done
+          echo "✓ All shell scripts have valid syntax"
+
+      - name: Test health check script
+        run: |
+          # Run health check in dry-run mode (won't actually check services)
+          bash -n scripts/health_check.sh
+          echo "✓ Health check script syntax OK"
+
+  test-frontend-loading:
+    name: Test Frontend Files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check HTML files
+        run: |
+          # Basic HTML validation
+          if [ -f web/templates/index.html ]; then
+            echo "✓ Index HTML exists"
+            # Check for required elements
+            grep -q "NetworkTap" web/templates/index.html || (echo "✗ Missing title" && exit 1)
+            grep -q "app.js" web/templates/index.html || (echo "✗ Missing app.js" && exit 1)
+          fi
+
+      - name: Check JavaScript files
+        run: |
+          # Check that main JS files exist and have no syntax errors
+          for js in web/static/js/*.js; do
+            if [ -f "$js" ]; then
+              echo "Checking $(basename $js)..."
+              # Basic syntax check using node if available, otherwise just check file exists
+              if command -v node &> /dev/null; then
+                node -c "$js" 2>&1 || echo "Warning: $(basename $js) may have syntax issues"
+              fi
+            fi
+          done
+          echo "✓ JavaScript files present"
+
+      - name: Check CSS files
+        run: |
+          # Check CSS exists
+          if [ -f web/static/css/style.css ]; then
+            echo "✓ Main stylesheet exists"
+            LINES=$(wc -l < web/static/css/style.css)
+            echo "  Stylesheet size: $LINES lines"
+          fi
+
+      - name: Check static assets
+        run: |
+          # Verify key assets exist
+          if [ -f web/static/img/logo.svg ]; then
+            echo "✓ Logo exists"
+          else
+            echo "⚠ Warning: Logo missing (logo.svg)"
+          fi

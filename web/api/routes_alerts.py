@@ -34,6 +34,15 @@ async def zeek_alerts(
     return {"alerts": alerts, "count": len(alerts), "source": "zeek"}
 
 
+@router.get("/recent")
+async def recent_alerts(
+    user: Annotated[str, Depends(verify_credentials)],
+    limit: int = Query(100, ge=1, le=1000),
+):
+    """Get most recent alerts from all sources (alias for /all)."""
+    return await all_alerts(user, limit)
+
+
 @router.get("/all")
 async def all_alerts(
     user: Annotated[str, Depends(verify_credentials)],

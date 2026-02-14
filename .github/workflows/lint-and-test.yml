@@ -1,0 +1,159 @@
+name: Lint and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-python:
+    name: Lint Python Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd web
+          pip install -r requirements.txt
+          pip install flake8 pylint
+
+      - name: Run flake8
+        run: |
+          cd web
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        continue-on-error: true
+
+      - name: Check Python syntax
+        run: |
+          cd web
+          python3 -m py_compile app.py core/*.py api/*.py
+
+  lint-shell:
+    name: Lint Shell Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run shellcheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: './scripts'
+          severity: warning
+        continue-on-error: true
+
+      - name: Check shell syntax
+        run: |
+          find . -name "*.sh" -type f -exec bash -n {} \;
+
+  test-imports:
+    name: Test Python Imports
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd web
+          pip install -r requirements.txt
+
+      - name: Test imports
+        run: |
+          cd web
+          python3 -c "
+          import app
+          from core import config, auth, alert_parser, capture_manager
+          from core import system_monitor, network_manager
+          print('✓ All core modules import successfully')
+          "
+
+      - name: Test config loading
+        run: |
+          cd web
+          python3 -c "
+          from core.config import get_config
+          c = get_config()
+          print(f'✓ Config loaded: mode={c.mode}, web_port={c.web_port}')
+          "
+
+  security-check:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install bandit
+        run: pip install bandit[toml]
+
+      - name: Run bandit security scan
+        run: |
+          cd web
+          bandit -r . -f json -o bandit-report.json || true
+          bandit -r . -f screen
+        continue-on-error: true
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-security-report
+          path: web/bandit-report.json
+
+  validate-config:
+    name: Validate Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check config file syntax
+        run: |
+          # Validate shell-style config can be sourced
+          bash -c "source networktap.conf && echo '✓ Config file is valid'"
+
+      - name: Check for required config keys
+        run: |
+          for key in MODE NIC1 NIC2 CAPTURE_DIR WEB_PORT WEB_USER WEB_PASS; do
+            if ! grep -q "^$key=" networktap.conf && ! grep -q "^#.*$key=" networktap.conf; then
+              echo "Warning: $key not found in networktap.conf"
+            fi
+          done
+
+  check-dependencies:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check for dependency conflicts
+        run: |
+          cd web
+          pip install -r requirements.txt --dry-run 2>&1 | tee pip-check.log
+          if grep -i "conflict\|error" pip-check.log; then
+            echo "::warning::Potential dependency conflicts detected"
+          fi

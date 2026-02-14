@@ -20,50 +20,63 @@ const App = (() => {
     let refreshInterval = null;
 
     function init() {
-        // Load theme preference
-        loadTheme();
+        try {
+            // Load theme preference
+            loadTheme();
 
-        // Navigation
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                const page = item.dataset.page;
-                navigate(page);
+            // Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = item.dataset.page;
+                    navigate(page);
+                });
             });
-        });
 
-        // Sidebar toggle (mobile)
-        document.getElementById('sidebar-toggle').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.toggle('open');
-        });
+            // Sidebar toggle (mobile)
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', () => {
+                    document.getElementById('sidebar').classList.toggle('open');
+                });
+            }
 
-        // Close sidebar on content click (mobile)
-        document.querySelector('.content').addEventListener('click', () => {
-            document.getElementById('sidebar').classList.remove('open');
-        });
+            // Close sidebar on content click (mobile)
+            const content = document.querySelector('.content');
+            if (content) {
+                content.addEventListener('click', () => {
+                    document.getElementById('sidebar').classList.remove('open');
+                });
+            }
 
-        // Theme toggle
-        const themeToggle = document.getElementById('theme-toggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', toggleTheme);
-        }
+            // Theme toggle
+            const themeToggle = document.getElementById('theme-toggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
 
-        // Hash-based routing
-        window.addEventListener('hashchange', () => {
+            // Hash-based routing
+            window.addEventListener('hashchange', () => {
+                const page = location.hash.slice(1) || 'dashboard';
+                navigate(page, false);
+            });
+
+            // Connect WebSocket
+            WS.connect();
+
+            // Initial navigation
             const page = location.hash.slice(1) || 'dashboard';
             navigate(page, false);
-        });
 
-        // Connect WebSocket
-        WS.connect();
+            // Start global status polling
+            updateGlobalStatus();
+            setInterval(updateGlobalStatus, 10000);
 
-        // Initial navigation
-        const page = location.hash.slice(1) || 'dashboard';
-        navigate(page, false);
-
-        // Start global status polling
-        updateGlobalStatus();
-        setInterval(updateGlobalStatus, 10000);
+            console.log('✓ NetworkTap initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize NetworkTap:', error);
+            toast('Failed to initialize application', 'error');
+        }
     }
 
     function navigate(page, pushHash = true) {
@@ -147,6 +160,8 @@ const App = (() => {
 })();
 
 /* ── API Helper ─────────────────────────────────────── */
+let activeRequests = 0;
+
 async function api(url, options = {}) {
     const config = Settings.getCredentials();
     const headers = {
@@ -159,19 +174,59 @@ async function api(url, options = {}) {
         options.body = JSON.stringify(options.body);
     }
 
-    const resp = await fetch(url, { ...options, headers });
+    // Show loading indicator
+    activeRequests++;
+    updateLoadingIndicator();
 
-    if (resp.status === 401) {
-        toast('Authentication failed. Check credentials in Settings.', 'error');
-        throw new Error('Unauthorized');
+    try {
+        const resp = await fetch(url, { ...options, headers });
+
+        if (resp.status === 401) {
+            toast('Authentication failed. Check credentials in Settings.', 'error');
+            throw new Error('Unauthorized');
+        }
+
+        if (resp.status === 403) {
+            toast('Access forbidden. Insufficient permissions.', 'error');
+            throw new Error('Forbidden');
+        }
+
+        if (resp.status === 404) {
+            toast('Resource not found.', 'error');
+            throw new Error('Not Found');
+        }
+
+        if (resp.status >= 500) {
+            toast('Server error. Please try again later.', 'error');
+            throw new Error('Server Error');
+        }
+
+        if (!resp.ok) {
+            const text = await resp.text();
+            toast(text || resp.statusText, 'error');
+            throw new Error(text || resp.statusText);
+        }
+
+        return await resp.json();
+    } catch (error) {
+        // Network error or other fetch failure
+        if (error.message === 'Failed to fetch') {
+            toast('Network error. Check connection to server.', 'error');
+        }
+        throw error;
+    } finally {
+        activeRequests--;
+        updateLoadingIndicator();
     }
+}
 
-    if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(text || resp.statusText);
+function updateLoadingIndicator() {
+    // Add/remove loading class to body for global loading indicator
+    if (activeRequests > 0) {
+        document.body.classList.add('loading');
+    } else {
+        document.body.classList.remove('loading');
     }
-
-    return resp.json();
 }
 
 /* ── Toast Notifications ────────────────────────────── */
@@ -241,9 +296,23 @@ function barColor(pct) {
 }
 
 function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
     const div = document.createElement('div');
-    div.textContent = str;
+    div.textContent = String(str);
     return div.innerHTML;
+}
+
+// Safe innerHTML replacement - use this instead of innerHTML
+function setHtml(element, html) {
+    element.innerHTML = html;
+}
+
+// Create element with safe text content
+function createElement(tag, text = '', className = '') {
+    const el = document.createElement(tag);
+    if (text) el.textContent = text;
+    if (className) el.className = className;
+    return el;
 }
 
 /* ── Start ──────────────────────────────────────────── */
