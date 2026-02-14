@@ -106,6 +106,11 @@ rm -f /etc/networktap.conf
 rm -f /etc/logrotate.d/networktap
 rm -f /etc/issue.networktap
 
+# ── Remove command symlinks ──────────────────────────────────────
+log "Removing command symlinks..."
+rm -f /usr/local/bin/networktap-status
+rm -f /usr/local/bin/networktap-health
+
 # ── Remove installation directory ────────────────────────────────
 log "Removing ${INSTALL_DIR}..."
 rm -rf "$INSTALL_DIR"
