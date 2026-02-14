@@ -15,6 +15,8 @@ router = APIRouter()
 WIFI_SCRIPT = "/opt/networktap/scripts/wifi.sh"
 AP_SCRIPT = "/opt/networktap/scripts/ap.sh"
 WIFI_CAPTURE_SCRIPT = "/opt/networktap/scripts/wifi_capture.sh"
+WIFI_SURVEY_SCRIPT = "/opt/networktap/scripts/wifi_survey.sh"
+SURVEY_FILE = "/var/lib/networktap/wifi-survey/survey.json"
 
 
 def _find_wifi_iface() -> str | None:
@@ -72,6 +74,23 @@ async def _run_wifi_capture(args: list[str], timeout: int = 20) -> tuple[int, st
     """Run wifi_capture.sh asynchronously for monitor mode capture."""
     proc = await asyncio.create_subprocess_exec(
         WIFI_CAPTURE_SCRIPT, *args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.communicate()
+        return 1, "", "Command timed out"
+
+    return proc.returncode or 0, stdout.decode(errors="replace"), stderr.decode(errors="replace")
+
+
+async def _run_wifi_survey(args: list[str], timeout: int = 30) -> tuple[int, str, str]:
+    """Run wifi_survey.sh asynchronously for site surveys."""
+    proc = await asyncio.create_subprocess_exec(
+        WIFI_SURVEY_SCRIPT, *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -506,3 +525,120 @@ async def wifi_capture_list(user: Annotated[str, Depends(verify_credentials)]):
         return {"captures": captures, "count": len(captures)}
     except Exception as e:
         return {"captures": [], "count": 0, "error": str(e)}
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WiFi Site Survey Endpoints
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@router.post("/survey/run")
+async def wifi_survey_run(user: Annotated[str, Depends(verify_credentials)]):
+    """Run a WiFi site survey (scans for access points)."""
+    try:
+        rc, stdout, stderr = await _run_wifi_survey(["survey"], timeout=30)
+        success = rc == 0 and "complete" in stdout.lower()
+        
+        # Extract AP count from output
+        ap_count = 0
+        for line in stdout.splitlines():
+            if "access points detected" in line.lower():
+                parts = line.split()
+                for i, part in enumerate(parts):
+                    if part.isdigit() and i > 0:
+                        ap_count = int(part)
+                        break
+        
+        return {
+            "success": success,
+            "message": f"Survey complete: {ap_count} APs detected" if success else (stderr or "Survey failed"),
+            "ap_count": ap_count,
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@router.get("/survey/results")
+async def wifi_survey_results(user: Annotated[str, Depends(verify_credentials)]):
+    """Get WiFi site survey results."""
+    try:
+        import json
+        
+        survey_path = Path(SURVEY_FILE)
+        if not survey_path.exists():
+            return {"access_points": [], "count": 0, "message": "No survey data. Run a survey first."}
+        
+        # Read survey JSON
+        survey_data = json.loads(survey_path.read_text())
+        
+        # Calculate channel utilization
+        channels = {}
+        for ap in survey_data:
+            ch = ap.get("channel", 0)
+            if ch > 0:
+                channels[ch] = channels.get(ch, 0) + 1
+        
+        # Find best channel (least congested in 2.4GHz)
+        best_24ghz = None
+        min_count = float('inf')
+        for ch in [1, 6, 11]:  # Non-overlapping 2.4GHz channels
+            count = channels.get(ch, 0)
+            if count < min_count:
+                min_count = count
+                best_24ghz = ch
+        
+        return {
+            "access_points": survey_data,
+            "count": len(survey_data),
+            "channel_utilization": channels,
+            "recommended_channel": best_24ghz,
+            "timestamp": survey_path.stat().st_mtime,
+        }
+    except Exception as e:
+        return {"access_points": [], "count": 0, "error": str(e)}
+
+
+@router.get("/survey/channels")
+async def wifi_survey_channels(user: Annotated[str, Depends(verify_credentials)]):
+    """Get channel utilization analysis."""
+    try:
+        import json
+        
+        survey_path = Path(SURVEY_FILE)
+        if not survey_path.exists():
+            return {"channels": {}, "message": "No survey data"}
+        
+        survey_data = json.loads(survey_path.read_text())
+        
+        # Analyze channels
+        channel_info = {}
+        for ap in survey_data:
+            ch = ap.get("channel", 0)
+            if ch == 0:
+                continue
+            
+            if ch not in channel_info:
+                channel_info[ch] = {
+                    "channel": ch,
+                    "ap_count": 0,
+                    "avg_signal": 0,
+                    "max_signal": -100,
+                    "band": "2.4GHz" if ch <= 14 else "5GHz",
+                }
+            
+            channel_info[ch]["ap_count"] += 1
+            signal = ap.get("signal", -100)
+            channel_info[ch]["max_signal"] = max(channel_info[ch]["max_signal"], signal)
+        
+        # Calculate average signals
+        for ch, info in channel_info.items():
+            signals = [ap.get("signal", -100) for ap in survey_data if ap.get("channel") == ch]
+            if signals:
+                info["avg_signal"] = sum(signals) / len(signals)
+        
+        return {
+            "channels": list(channel_info.values()),
+            "total_aps": len(survey_data),
+        }
+    except Exception as e:
+        return {"channels": [], "error": str(e)}
