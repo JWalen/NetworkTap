@@ -42,13 +42,14 @@ jobs:
           RELEASE_NAME="networktap-$VERSION"
           
           # Create release directory
-          mkdir -p "dist/$RELEASE_NAME"
+          mkdir -p "$RELEASE_NAME"
           
           # Copy files
           cp -r config docs scripts services setup web "$RELEASE_NAME"/
           cp install.sh uninstall.sh networktap.conf VERSION README.md CHANGELOG.md "$RELEASE_NAME"/
           
-          # Create tarball
+          # Create dist directory and tarball
+          mkdir -p dist
           tar czf "dist/$RELEASE_NAME.tar.gz" "$RELEASE_NAME"
           
           # Create checksums
