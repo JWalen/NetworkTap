@@ -8,6 +8,8 @@ const App = (() => {
         network: Network,
         pcaps: Pcaps,
         terminal: Terminal,
+        wifi: WiFi,
+        updates: Updates,
         settings: Settings,
         stats: Stats,
         rules: Rules,

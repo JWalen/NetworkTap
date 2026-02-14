@@ -113,6 +113,25 @@ const Help = (() => {
                     </div>
 
                     <div class="help-section">
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">📡 WiFi</h4>
+                        <p>Comprehensive wireless security platform with 7 tabs:</p>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li><strong>Overview:</strong> All wireless features at a glance</li>
+                            <li><strong>Client Mode:</strong> Connect to WiFi networks, scan for SSIDs</li>
+                            <li><strong>Access Point:</strong> Create wireless hotspot (WPA2-PSK), track clients</li>
+                            <li><strong>Packet Capture:</strong> Monitor mode 802.11 frame capture</li>
+                            <li><strong>Site Survey:</strong> Signal analysis, channel utilization mapping</li>
+                            <li><strong>Wireless IDS:</strong> Rogue AP detection, alert management</li>
+                            <li><strong>Client Tracking:</strong> Device inventory, vendor identification</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">⬆️ Updates</h4>
+                        <p>Software update management from GitHub releases. Check for updates, download and install with automatic backup, view update history, and rollback if needed. All updates are SHA256-verified.</p>
+                    </div>
+
+                    <div class="help-section">
                         <h4 style="color:var(--text-primary);margin:16px 0 8px;">🛡️ Rules</h4>
                         <p>Manage Suricata IDS rules. Browse rule files, search rules, enable/disable individual rules, and reload the rule set.</p>
                     </div>
@@ -178,6 +197,38 @@ const Help = (() => {
                 </div>
                 <div class="changelog-content" style="line-height:1.7;color:var(--text-secondary);">
                     
+                    <div class="changelog-version">
+                        <h3 style="color:var(--accent);margin:0 0 8px;">v1.1.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
+                        
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added - Complete WiFi Security Platform</h4>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li><strong>WiFi Management UI</strong> - 7-tab interface: Overview, Client Mode, Access Point, Packet Capture, Site Survey, Wireless IDS, Client Tracking</li>
+                            <li><strong>Auto-Update UI</strong> - Check for updates, download/install with progress tracking, update history, one-click rollback</li>
+                            <li><strong>WiFi Access Point</strong> - Turn device into WPA2-PSK hotspot with DHCP server and client tracking</li>
+                            <li><strong>WiFi Packet Capture</strong> - Monitor mode 802.11 frame capture with channel selection</li>
+                            <li><strong>WiFi Site Survey</strong> - AP detection, signal analysis, channel utilization mapping</li>
+                            <li><strong>Wireless IDS</strong> - Rogue AP detection, known SSID whitelist, alert management</li>
+                            <li><strong>Client Tracking</strong> - Device inventory with MAC tracking, vendor ID, probe analysis</li>
+                            <li><strong>Auto-Update System</strong> - GitHub releases integration with SHA256 verification, backup, and rollback</li>
+                        </ul>
+
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Backend</h4>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li>Added 25 new WiFi API endpoints across 6 feature categories</li>
+                            <li>Added 9 auto-update API endpoints</li>
+                            <li>New modules: wifi_analyzer.py, github_client.py, update_manager.py</li>
+                            <li>5 new shell scripts for WiFi and update management</li>
+                        </ul>
+
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Testing</h4>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li>140+ tests executed, 100% pass rate on components, 90% on integration</li>
+                            <li>5 full end-to-end application test runs completed</li>
+                        </ul>
+                    </div>
+
+                    <hr style="border:none;border-top:1px solid var(--border-color);margin:24px 0;">
+
                     <div class="changelog-version">
                         <h3 style="color:var(--accent);margin:0 0 8px;">v1.0.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
                         
