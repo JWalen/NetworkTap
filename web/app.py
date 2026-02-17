@@ -87,7 +87,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="NetworkTap",
     description="Network Tap Appliance Dashboard",
-    version="0.0.1-beta",
+    version="1.0.2",
     lifespan=lifespan,
 )
 

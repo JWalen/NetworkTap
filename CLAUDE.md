@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NetworkTap is a network tap/monitoring appliance for the OnLogic FR201 (2-NIC Linux). It combines passive packet capture (tcpdump), IDS (Suricata + Zeek), and a FastAPI web dashboard. Target OS is Debian 12+/Ubuntu 22.04+.
 
-**Version:** 0.0.1-beta
+**Version:** 1.0.2
 
 ## Common Commands
 
