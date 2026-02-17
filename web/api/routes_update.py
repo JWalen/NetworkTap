@@ -1,10 +1,11 @@
 """Update management API endpoints."""
 
 import logging
+import subprocess
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from pydantic import BaseModel
 
 from core.auth import verify_credentials
 from core.config import get_config
@@ -27,30 +28,23 @@ def get_update_manager() -> UpdateManager:
     return _update_manager
 
 
-class UpdateCheckResponse(BaseModel):
-    """Response for update check."""
-    current_version: str
-    latest_version: str
-    update_available: bool
-    changelog: str
-    release_date: str
-    prerelease: bool
-
-
-class UpdateStatusResponse(BaseModel):
-    """Response for update status."""
-    state: str
-    progress: int
-    message: str
-    error: str | None = None
-
-
-class UpdateHistoryItem(BaseModel):
-    """Update history entry."""
-    version: str
-    timestamp: str
-    success: bool
-    error: str | None = None
+def _get_git_info(install_dir: Path) -> dict:
+    """Get git commit hash and install date from the install directory."""
+    info = {"commit_hash": None, "installed_date": None}
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%H %aI"],
+            cwd=str(install_dir), capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            parts = result.stdout.strip().split(" ", 1)
+            if len(parts) >= 1:
+                info["commit_hash"] = parts[0]
+            if len(parts) >= 2:
+                info["installed_date"] = parts[1]
+    except Exception:
+        pass
+    return info
 
 
 @router.get("/current")
@@ -58,11 +52,13 @@ async def get_current_version(user: Annotated[str, Depends(verify_credentials)])
     """Get currently installed version."""
     manager = get_update_manager()
     version = manager.get_current_version()
-    
+    git_info = _get_git_info(manager.install_dir)
+
     return {
         "version": version,
-        "install_dir": str(manager.install_dir),
-        "version_file": str(manager.version_file),
+        "repository": manager.repo,
+        "commit_hash": git_info["commit_hash"],
+        "installed_date": git_info["installed_date"],
     }
 
 
@@ -71,32 +67,28 @@ async def check_for_updates(
     user: Annotated[str, Depends(verify_credentials)],
     include_prerelease: bool = False
 ):
-    """
-    Check for available updates.
-    
-    Args:
-        include_prerelease: Include pre-release versions
-    """
+    """Check for available updates."""
     manager = get_update_manager()
-    
+
     try:
         info = await manager.check_for_updates(include_prerelease)
-        
+
         if not info:
             return {
                 "update_available": False,
-                "message": "No updates available or unable to check"
+                "current_version": manager.get_current_version(),
+                "latest_version": manager.get_current_version(),
+                "message": "No releases found on GitHub",
             }
-        
-        return UpdateCheckResponse(
-            current_version=info.current_version,
-            latest_version=info.latest_version,
-            update_available=info.update_available,
-            changelog=info.changelog,
-            release_date=info.release_date.isoformat(),
-            prerelease=include_prerelease,
-        )
-        
+
+        return {
+            "update_available": info.update_available,
+            "current_version": info.current_version,
+            "latest_version": info.latest_version,
+            "release_notes": info.changelog,
+            "published_at": info.release_date.isoformat(),
+        }
+
     except Exception as e:
         logger.error(f"Failed to check for updates: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -107,13 +99,17 @@ async def get_update_status(user: Annotated[str, Depends(verify_credentials)]):
     """Get current update operation status."""
     manager = get_update_manager()
     status = manager.get_status()
-    
-    return UpdateStatusResponse(
-        state=status.state,
-        progress=status.progress,
-        message=status.message,
-        error=status.error,
-    )
+
+    in_progress = status.state not in ("idle", "complete", "failed", "rolled_back")
+
+    return {
+        "state": status.state,
+        "in_progress": in_progress,
+        "operation": status.state,
+        "progress": status.progress,
+        "message": status.message,
+        "error": status.error,
+    }
 
 
 @router.post("/download")
@@ -123,54 +119,39 @@ async def download_update(
     version: str | None = None,
     include_prerelease: bool = False
 ):
-    """
-    Download an update package.
-    
-    Args:
-        version: Specific version to download (optional, uses latest if not specified)
-        include_prerelease: Include pre-release versions
-    """
+    """Download an update package."""
     manager = get_update_manager()
-    
+
     try:
-        # Get update info
         info = await manager.check_for_updates(include_prerelease)
-        
+
         if not info:
-            raise HTTPException(status_code=404, detail="No updates available")
-        
+            return {"success": False, "message": "No updates available"}
+
         if version and info.latest_version != version:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Requested version {version} does not match latest {info.latest_version}"
-            )
-        
+            return {"success": False, "message": f"Requested version {version} does not match latest {info.latest_version}"}
+
         if not info.update_available:
-            return {
-                "message": "Already at latest version",
-                "current_version": info.current_version,
-            }
-        
-        # Start download in background
+            return {"success": True, "message": "Already at latest version"}
+
         async def download_task():
             success = await manager.download_update(info)
             if success:
                 logger.info(f"Downloaded version {info.latest_version}")
             else:
                 logger.error(f"Failed to download version {info.latest_version}")
-        
+
         background_tasks.add_task(download_task)
-        
+
         return {
+            "success": True,
             "message": "Download started",
             "version": info.latest_version,
         }
-        
-    except HTTPException:
-        raise
+
     except Exception as e:
         logger.error(f"Failed to start download: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"success": False, "message": str(e)}
 
 
 @router.post("/install")
@@ -180,45 +161,32 @@ async def install_update(
     version: str,
     skip_backup: bool = False
 ):
-    """
-    Install a downloaded update.
-    
-    Args:
-        version: Version to install
-        skip_backup: Skip backup step (not recommended)
-    """
+    """Install a downloaded update."""
     manager = get_update_manager()
-    
+
     try:
-        # Verify download exists
         tarball_path = manager.download_dir / f"networktap-{version}.tar.gz"
         if not tarball_path.exists():
-            raise HTTPException(
-                status_code=404,
-                detail=f"Update package for version {version} not found. Download it first."
-            )
-        
-        # Start installation in background
+            return {"success": False, "message": f"Update package for version {version} not found. Download it first."}
+
         async def install_task():
             success = await manager.install_update(version, skip_backup)
             if success:
                 logger.info(f"Successfully installed version {version}")
             else:
                 logger.error(f"Failed to install version {version}")
-        
+
         background_tasks.add_task(install_task)
-        
+
         return {
+            "success": True,
             "message": "Installation started",
             "version": version,
-            "warning": "Services will restart during installation"
         }
-        
-    except HTTPException:
-        raise
+
     except Exception as e:
         logger.error(f"Failed to start installation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"success": False, "message": str(e)}
 
 
 @router.post("/update")
@@ -227,44 +195,38 @@ async def perform_full_update(
     background_tasks: BackgroundTasks,
     include_prerelease: bool = False
 ):
-    """
-    Check, download, and install update in one operation.
-    
-    Args:
-        include_prerelease: Include pre-release versions
-    """
+    """Check, download, and install update in one operation."""
     manager = get_update_manager()
-    
+
     try:
-        # Check for updates first
         info = await manager.check_for_updates(include_prerelease)
-        
+
         if not info or not info.update_available:
             return {
+                "success": True,
                 "message": "No updates available",
-                "current_version": manager.get_current_version()
+                "current_version": manager.get_current_version(),
             }
-        
-        # Start full update in background
+
         async def update_task():
             success = await manager.perform_full_update(include_prerelease)
             if success:
                 logger.info(f"Successfully updated to version {info.latest_version}")
             else:
                 logger.error("Full update failed")
-        
+
         background_tasks.add_task(update_task)
-        
+
         return {
+            "success": True,
             "message": "Update started",
             "current_version": info.current_version,
             "target_version": info.latest_version,
-            "warning": "Services will restart during installation"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to start update: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"success": False, "message": str(e)}
 
 
 @router.get("/history")
@@ -272,15 +234,16 @@ async def get_update_history(user: Annotated[str, Depends(verify_credentials)]):
     """Get update history."""
     manager = get_update_manager()
     history = manager.get_update_history()
-    
+
     return {
         "history": [
-            UpdateHistoryItem(
-                version=item["version"],
-                timestamp=item["timestamp"],
-                success=item["success"],
-                error=item.get("error")
-            )
+            {
+                "version": item["version"],
+                "timestamp": item["timestamp"],
+                "success": item["success"],
+                "previous_version": item.get("previous_version"),
+                "notes": item.get("notes", item.get("error", "")),
+            }
             for item in history
         ]
     }
@@ -291,13 +254,9 @@ async def rollback_update(
     user: Annotated[str, Depends(verify_credentials)],
     background_tasks: BackgroundTasks
 ):
-    """
-    Rollback to previous version.
-    
-    WARNING: This will stop services and restore from backup.
-    """
+    """Rollback to previous version."""
     manager = get_update_manager()
-    
+
     try:
         async def rollback_task():
             success = await manager._rollback()
@@ -305,17 +264,17 @@ async def rollback_update(
                 logger.info("Rollback completed successfully")
             else:
                 logger.error("Rollback failed")
-        
+
         background_tasks.add_task(rollback_task)
-        
+
         return {
+            "success": True,
             "message": "Rollback started",
-            "warning": "Services will restart"
         }
-        
+
     except Exception as e:
         logger.error(f"Failed to start rollback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"success": False, "message": str(e)}
 
 
 @router.get("/changelog/{version}")
@@ -323,24 +282,18 @@ async def get_changelog(
     user: Annotated[str, Depends(verify_credentials)],
     version: str
 ):
-    """
-    Get changelog for a specific version.
-    
-    Args:
-        version: Version tag (e.g., "v1.0.1" or "1.0.1")
-    """
+    """Get changelog for a specific version."""
     manager = get_update_manager()
-    
+
     try:
-        # Ensure version has 'v' prefix
         if not version.startswith('v'):
             version = f'v{version}'
-        
+
         release = await manager.github.get_release_by_tag(version)
-        
+
         if not release:
             raise HTTPException(status_code=404, detail=f"Release {version} not found")
-        
+
         return {
             "version": release.version,
             "tag": release.tag_name,
@@ -349,7 +302,7 @@ async def get_changelog(
             "published_at": release.published_at.isoformat(),
             "prerelease": release.prerelease,
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:

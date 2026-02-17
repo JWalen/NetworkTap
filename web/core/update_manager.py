@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import os
 import shutil
 import subprocess
 import tarfile
@@ -58,8 +59,13 @@ class UpdateManager:
     def get_current_version(self) -> str:
         """Get currently installed version."""
         try:
+            # Try /opt/networktap/VERSION first
             if self.version_file.exists():
                 return self.version_file.read_text().strip()
+            # Fall back to VERSION in project root
+            project_version = Path(__file__).parent.parent.parent / "VERSION"
+            if project_version.exists():
+                return project_version.read_text().strip()
             return "unknown"
         except Exception as e:
             logger.error(f"Failed to read version: {e}")
@@ -191,7 +197,8 @@ class UpdateManager:
         """
         try:
             self._update_status("installing", 0, "Starting installation...")
-            
+            previous_version = self.get_current_version()
+
             tarball_path = self.download_dir / f"networktap-{version}.tar.gz"
             if not tarball_path.exists():
                 self._update_status("failed", 0, "Update package not found")
@@ -220,16 +227,18 @@ class UpdateManager:
             
             source_dir = extracted_dirs[0]
             
-            # Run update script
+            # Run update script with FORCE=yes to skip interactive prompt
             self._update_status("installing", 60, "Installing update...")
             update_script = Path(__file__).parent.parent.parent / "scripts" / "update.sh"
-            
+
+            env = {**os.environ, "FORCE": "yes"}
             proc = await asyncio.create_subprocess_exec(
                 str(update_script),
                 str(source_dir),
                 str(self.install_dir),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
             
             stdout, stderr = await proc.communicate()
@@ -247,7 +256,7 @@ class UpdateManager:
             self.version_file.write_text(version + "\n")
             
             # Record in history
-            await self._record_update(version, success=True)
+            await self._record_update(version, success=True, previous_version=previous_version)
             
             # Cleanup
             shutil.rmtree(extract_dir, ignore_errors=True)
@@ -322,15 +331,16 @@ class UpdateManager:
             logger.error(f"Rollback failed: {e}")
             return False
     
-    async def _record_update(self, version: str, success: bool, error: Optional[str] = None):
+    async def _record_update(self, version: str, success: bool, error: Optional[str] = None, previous_version: Optional[str] = None):
         """Record update in history."""
         try:
             history = []
             if self.history_file.exists():
                 history = json.loads(self.history_file.read_text())
-            
+
             history.insert(0, {
                 "version": version,
+                "previous_version": previous_version,
                 "timestamp": datetime.now().isoformat(),
                 "success": success,
                 "error": error,
