@@ -48,22 +48,20 @@ do_scan() {
     # Use iw if available, fall back to wpa_cli
     if command -v iw &>/dev/null; then
         iw dev "$IFACE" scan 2>/dev/null | awk '
-            /^BSS / { mac=$2 }
+            /^BSS / {
+                if (ssid != "") printf "%s\t%s\t%s\t%s\n", ssid, signal, freq, security
+                mac=$2; ssid=""; signal=""; freq=""; security="Open"
+            }
             /SSID:/ { ssid=substr($0, index($0, "SSID: ")+6) }
-            /signal:/ { signal=$2" "$3 }
-            /freq:/ { freq=$2 }
+            /signal:/ { signal=$2+0 }
+            /freq:/ { freq=$2+0 }
             /RSN:/ { security="WPA2" }
             /WPA:/ { if (security=="") security="WPA" }
             /capability:.*Privacy/ { if (security=="") security="WEP" }
-            /^BSS / {
-                if (prev_ssid != "") printf "%-32s %s  %s MHz  %s\n", prev_ssid, prev_signal, prev_freq, prev_sec
-                prev_ssid=ssid; prev_signal=signal; prev_freq=freq; prev_sec=security
-                ssid=""; signal=""; freq=""; security="Open"
-            }
             END {
-                if (ssid != "") printf "%-32s %s  %s MHz  %s\n", ssid, signal, freq, security
+                if (ssid != "") printf "%s\t%s\t%s\t%s\n", ssid, signal, freq, security
             }
-        ' | sort -u
+        ' | sort -t'	' -k1,1 -u
     else
         echo "[!] Install iw for scan support: apt install iw"
     fi

@@ -67,23 +67,27 @@ const Captures = (() => {
 
     function updateStatus(status) {
         const statusEl = document.getElementById('cap-status');
+        if (!statusEl) return;  // Page navigated away
         statusEl.textContent = status.running ? 'Active' : 'Stopped';
         statusEl.style.color = status.running ? 'var(--green)' : 'var(--text-muted)';
 
-        document.getElementById('cap-iface').textContent = `Interface: ${status.interface} (${status.mode} mode)`;
-        document.getElementById('cap-count').textContent = status.file_count;
-        document.getElementById('cap-size').textContent = formatBytes(status.total_size);
-        document.getElementById('cap-rotate').textContent = formatDuration(status.rotation_seconds);
-        document.getElementById('cap-compress').textContent = status.compress ? 'Compression: ON' : 'Compression: OFF';
+        const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        setText('cap-iface', `Interface: ${status.interface} (${status.mode} mode)`);
+        setText('cap-count', status.file_count);
+        setText('cap-size', formatBytes(status.total_size));
+        setText('cap-rotate', formatDuration(status.rotation_seconds));
+        setText('cap-compress', status.compress ? 'Compression: ON' : 'Compression: OFF');
 
         const filterInfo = document.getElementById('cap-filter-info');
-        filterInfo.textContent = status.filter
+        if (filterInfo) filterInfo.textContent = status.filter
             ? `BPF Filter: ${status.filter}`
             : 'Capturing all traffic (no BPF filter)';
 
         // Update buttons
-        document.getElementById('btn-start-capture').disabled = status.running;
-        document.getElementById('btn-stop-capture').disabled = !status.running;
+        const startBtn = document.getElementById('btn-start-capture');
+        const stopBtn = document.getElementById('btn-stop-capture');
+        if (startBtn) startBtn.disabled = status.running;
+        if (stopBtn) stopBtn.disabled = !status.running;
 
         // Recent files
         const filesEl = document.getElementById('cap-files');
@@ -105,7 +109,7 @@ const Captures = (() => {
                     <div class="file-meta">${formatBytes(f.size)} &middot; ${formatDate(f.modified)}</div>
                 </div>
                 <div class="file-actions">
-                    <a href="/api/pcap/download/${encodeURIComponent(f.name)}" class="btn btn-sm btn-secondary" title="Download">
+                    <a href="/api/pcaps/${encodeURIComponent(f.name)}/download" class="btn btn-sm btn-secondary" title="Download">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
                             <polyline points="7 10 12 15 17 10"/>

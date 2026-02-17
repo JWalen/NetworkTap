@@ -835,6 +835,196 @@ tbody tr:last-child td {
     pointer-events: none;
 }
 
+.btn-success {
+    background: var(--green, #22c55e);
+    color: #fff;
+    border-color: var(--green, #22c55e);
+}
+.btn-success:hover {
+    opacity: 0.85;
+}
+
+.btn-warning {
+    background: var(--orange, #f97316);
+    color: #fff;
+    border-color: var(--orange, #f97316);
+}
+.btn-warning:hover {
+    opacity: 0.85;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PAGE HEADER
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.page-header {
+    margin-bottom: var(--space-xl);
+}
+.page-header h1 {
+    font-size: var(--text-xl, 1.25rem);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-xs) 0;
+}
+.page-header p {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    margin: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   STATUS INDICATORS (wifi, updates pages)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.status-good {
+    color: var(--green, #22c55e);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+.status-warn {
+    color: var(--yellow, #eab308);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+.status-error {
+    color: var(--red, #ef4444);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+.status-off {
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   STAT ROWS & MISC LAYOUT (wifi, updates pages)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm) 0;
+    border-bottom: 1px solid var(--border);
+    font-size: var(--text-sm);
+}
+.stat-row:last-child {
+    border-bottom: none;
+}
+.stat-row span:first-child {
+    color: var(--text-secondary);
+}
+.stat-row span:last-child {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.button-group {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.help-text {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    margin-top: var(--space-sm);
+}
+
+.tab-content {
+    min-height: 200px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DATA TABLE (wifi, updates pages)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+}
+.data-table thead th {
+    text-align: left;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+}
+.data-table tbody td {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+}
+.data-table tbody tr:hover {
+    background: var(--bg-card-hover, rgba(255,255,255,0.02));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TOGGLE SWITCH (ai page)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    cursor: pointer;
+}
+.toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-slider {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border);
+    border-radius: var(--radius-full);
+    transition: background var(--transition-fast);
+}
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: var(--text-primary);
+    border-radius: 50%;
+    transition: transform var(--transition-fast);
+}
+.toggle input:checked + .toggle-slider {
+    background: var(--accent);
+}
+.toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PROGRESS BAR (updates page)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-primary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    margin-bottom: var(--space-sm);
+}
+.progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    INTERFACE CARDS
    ══════════════════════════════════════════════════════════════════════════ */
@@ -960,6 +1150,14 @@ tbody tr:last-child td {
 /* ══════════════════════════════════════════════════════════════════════════
    SERVICE ITEMS (Dashboard service list)
    ══════════════════════════════════════════════════════════════════════════ */
+
+#service-list {
+    min-height: 200px;
+}
+
+#iface-list {
+    min-height: 120px;
+}
 
 .service-item {
     display: flex;
@@ -1110,6 +1308,7 @@ tbody tr:last-child td {
 
 .alert-feed {
     max-height: 380px;
+    min-height: 120px;
     overflow-y: auto;
 }
 
@@ -1167,6 +1366,7 @@ tbody tr:last-child td {
     width: 100%;
     overflow: hidden;
     max-width: 100%;
+    min-height: 120px;
 }
 
 .chart-container svg {
@@ -1184,6 +1384,7 @@ tbody tr:last-child td {
 .chart-container--donut {
     max-width: 200px;
     margin: 0 auto;
+    min-height: 160px;
 }
 
 .chart-container--donut svg {

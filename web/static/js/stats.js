@@ -309,7 +309,8 @@ const Stats = (() => {
             const data = await api('/api/stats/bandwidth?minutes=60');
             renderBandwidthChart(data.data);
         } catch (e) {
-            document.getElementById('bandwidth-chart').innerHTML = renderNoData('Unable to load bandwidth data.');
+            const el = document.getElementById('bandwidth-chart');
+            if (el) el.innerHTML = renderNoData('Unable to load bandwidth data.');
         }
     }
 
@@ -329,8 +330,10 @@ const Stats = (() => {
             renderDnsDomains(data.top_domains);
             renderDnsTypes(data.query_types);
         } catch (e) {
-            document.getElementById('dns-domains').innerHTML = renderNoData('Unable to load DNS data.');
-            document.getElementById('dns-types').innerHTML = renderNoData('Unable to load DNS data.');
+            const d = document.getElementById('dns-domains');
+            const t = document.getElementById('dns-types');
+            if (d) d.innerHTML = renderNoData('Unable to load DNS data.');
+            if (t) t.innerHTML = renderNoData('Unable to load DNS data.');
         }
     }
 
@@ -339,7 +342,8 @@ const Stats = (() => {
             const data = await api('/api/stats/services?hours=24');
             renderServiceDistribution(data.services);
         } catch (e) {
-            document.getElementById('service-dist').innerHTML = renderNoData('Unable to load service data.');
+            const el = document.getElementById('service-dist');
+            if (el) el.innerHTML = renderNoData('Unable to load service data.');
         }
     }
 
@@ -448,6 +452,7 @@ const Stats = (() => {
 
     function renderBandwidthChart(data) {
         const container = document.getElementById('bandwidth-chart');
+        if (!container) return;
         if (!data || data.length === 0) {
             container.innerHTML = renderNoData('Bandwidth data will appear as traffic is captured.');
             return;
@@ -497,6 +502,7 @@ const Stats = (() => {
 
     function renderProtocolChart(protocols) {
         const container = document.getElementById('protocol-chart');
+        if (!container) return;
         if (!protocols || Object.keys(protocols).length === 0) {
             container.innerHTML = renderNoData('Protocol distribution will appear as connections are logged.');
             return;
@@ -529,6 +535,7 @@ const Stats = (() => {
 
     function renderDnsDomains(domains) {
         const container = document.getElementById('dns-domains');
+        if (!container) return;
         if (!domains || domains.length === 0) {
             container.innerHTML = renderNoData('DNS queries will appear as traffic is captured.');
             return;
@@ -550,6 +557,7 @@ const Stats = (() => {
 
     function renderDnsTypes(types) {
         const container = document.getElementById('dns-types');
+        if (!container) return;
         if (!types || Object.keys(types).length === 0) {
             container.innerHTML = renderNoData('DNS query types will appear here.');
             return;
@@ -617,6 +625,7 @@ const Stats = (() => {
 
     function renderServiceDistribution(services) {
         const container = document.getElementById('service-dist');
+        if (!container) return;
         if (!services || services.length === 0) {
             container.innerHTML = renderNoData('Service distribution will appear as connections are logged.');
             return;
@@ -645,6 +654,7 @@ const Stats = (() => {
 
     function renderTopTalkers(talkers) {
         const container = document.getElementById('top-talkers');
+        if (!container) return;
         if (!talkers || talkers.length === 0) {
             container.innerHTML = renderNoData('Top talkers will appear as traffic is captured.');
             return;
@@ -674,6 +684,7 @@ const Stats = (() => {
 
     function renderTopPorts(ports) {
         const container = document.getElementById('top-ports');
+        if (!container) return;
         if (!ports || ports.length === 0) {
             container.innerHTML = renderNoData('Top ports will appear as traffic is captured.');
             return;

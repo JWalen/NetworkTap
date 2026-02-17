@@ -180,9 +180,10 @@ const Network = (() => {
 
     function updateNetworkConfig(netConfig) {
         const statusEl = document.getElementById('mgmt-network-status');
+        if (!statusEl) return;  // Page navigated away
         const modeSelect = document.getElementById('net-mode');
         const staticFields = document.getElementById('static-ip-fields');
-        
+
         if (!netConfig) {
             statusEl.innerHTML = '<span style="color:var(--text-muted)">Unable to load network config</span>';
             return;
@@ -422,6 +423,7 @@ const Network = (() => {
         });
 
         const desc = document.getElementById('mode-desc');
+        if (!desc) return;
         if (config.mode === 'span') {
             desc.textContent = `SPAN Mode: ${config.nic1} monitors traffic, ${config.nic2} is management interface`;
         } else {
@@ -431,6 +433,7 @@ const Network = (() => {
 
     function updateInterfaces(data) {
         const container = document.getElementById('iface-cards');
+        if (!container) return;
         const ifaces = data.interfaces || [];
 
         if (ifaces.length === 0) {
@@ -501,6 +504,7 @@ const Network = (() => {
 
         // Table
         const tbody = document.getElementById('iface-table-body');
+        if (!tbody) return;
         tbody.innerHTML = ifaces.map(i => `
             <tr>
                 <td><strong>${escapeHtml(i.name)}</strong></td>

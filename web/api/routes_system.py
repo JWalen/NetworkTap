@@ -99,11 +99,15 @@ async def identify_interface_port(
 
 
 # Hardcoded log sources — no user-supplied paths
+# Try journald-style paths first, fall back to traditional syslog
+_SYSLOG_PATH = "/var/log/syslog" if Path("/var/log/syslog").exists() else "/var/log/messages"
+_AUTH_PATH = "/var/log/auth.log" if Path("/var/log/auth.log").exists() else "/var/log/secure"
+
 LOG_SOURCES = {
     "web": "/var/log/networktap/web.log",
-    "syslog": "/var/log/syslog",
+    "syslog": _SYSLOG_PATH,
     "suricata": None,  # resolved from config
-    "auth": "/var/log/auth.log",
+    "auth": _AUTH_PATH,
     "kern": "/var/log/kern.log",
 }
 
@@ -138,6 +142,22 @@ async def read_logs(
 
     p = Path(path)
     if not p.exists():
+        # Fall back to journalctl for syslog/kern/auth on journald-only systems
+        journal_map = {"syslog": "", "kern": "-k", "auth": "-t sshd -t sudo -t login"}
+        if source in journal_map:
+            import asyncio
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "journalctl", "--no-pager", "-n", str(lines),
+                    *journal_map[source].split(),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
+                jlines = stdout.decode(errors="replace").strip().splitlines()
+                return {"source": source, "path": "journalctl", "lines": jlines, "available": True}
+            except Exception:
+                pass
         return {"source": source, "path": path, "lines": [], "available": False}
 
     raw_lines = _tail_lines(p, lines)

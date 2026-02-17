@@ -146,11 +146,37 @@ async def wifi_scan(user: Annotated[str, Depends(verify_credentials)]):
             line = line.strip()
             if not line or line.startswith("["):
                 continue
-            parts = line.split()
+            parts = line.split("\t")
             if len(parts) >= 4:
-                ssid = parts[0]
-                networks.append({"ssid": ssid, "raw": line})
+                ssid = parts[0].strip()
+                if not ssid:
+                    continue
+                try:
+                    signal = int(parts[1].strip())
+                except (ValueError, IndexError):
+                    signal = -100
+                try:
+                    freq = int(parts[2].strip())
+                except (ValueError, IndexError):
+                    freq = 0
+                security = parts[3].strip() if len(parts) > 3 else "Open"
+                # Derive channel from frequency
+                if 2412 <= freq <= 2484:
+                    channel = (freq - 2407) // 5 if freq < 2484 else 14
+                elif 5170 <= freq <= 5825:
+                    channel = (freq - 5000) // 5
+                else:
+                    channel = 0
+                networks.append({
+                    "ssid": ssid,
+                    "signal": signal,
+                    "frequency": freq,
+                    "channel": channel,
+                    "security": security,
+                })
 
+        # Sort by signal strength (strongest first)
+        networks.sort(key=lambda n: n["signal"], reverse=True)
         return {"networks": networks}
     except Exception as e:
         return {"networks": [], "error": str(e)}

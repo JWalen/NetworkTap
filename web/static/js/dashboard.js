@@ -110,7 +110,7 @@ const Dashboard = (() => {
             }
             
             labelIndices.forEach((idx, i) => {
-                const x = pad.left + (idx / (timestamps.length - 1)) * cw;
+                const x = pad.left + (timestamps.length > 1 ? (idx / (timestamps.length - 1)) * cw : cw / 2);
                 const label = formatTimeLabel(timestamps[idx], rangeKey);
                 
                 // Vertical grid line (skip first and last to avoid edge clutter)
@@ -139,7 +139,7 @@ const Dashboard = (() => {
             
             const points = vals.map((v, i) => {
                 const val = typeof v === 'object' ? v.value : v;
-                const x = pad.left + (i / (vals.length - 1)) * cw;
+                const x = pad.left + (vals.length > 1 ? (i / (vals.length - 1)) * cw : cw / 2);
                 const y = pad.top + ch - (val / yMax) * ch;
                 return `${x},${y}`;
             });
@@ -740,9 +740,32 @@ const Dashboard = (() => {
             return;
         }
 
-        el.innerHTML = interfaces.map(iface => {
-            const stateClass = iface.state === 'up' ? 'up' : 'down';
-            return `
+        const items = el.querySelectorAll('.interface-item');
+        if (items.length !== interfaces.length) {
+            // Interface count changed — full rebuild
+            el.innerHTML = interfaces.map(iface => buildIfaceHtml(iface)).join('');
+        } else {
+            // Update existing items in-place
+            interfaces.forEach((iface, i) => {
+                const stateClass = iface.state === 'up' ? 'up' : 'down';
+                const icon = items[i].querySelector('.interface-icon');
+                if (icon) icon.className = 'interface-icon ' + stateClass;
+                const nameEl = items[i].querySelector('.interface-name');
+                if (nameEl) nameEl.textContent = iface.name;
+                const ipEl = items[i].querySelector('.interface-ip');
+                if (ipEl) ipEl.textContent = iface.addresses.length ? iface.addresses.join(', ') : 'No IP assigned';
+                const byteEls = items[i].querySelectorAll('.stat-bytes');
+                if (byteEls[0]) byteEls[0].textContent = formatBytes(iface.bytes_recv);
+                if (byteEls[1]) byteEls[1].textContent = formatBytes(iface.bytes_sent);
+                const status = items[i].querySelector('.iface-status');
+                if (status) { status.className = 'iface-status ' + stateClass; status.textContent = iface.state; }
+            });
+        }
+    }
+
+    function buildIfaceHtml(iface) {
+        const stateClass = iface.state === 'up' ? 'up' : 'down';
+        return `
             <div class="interface-item">
                 <div class="interface-icon ${stateClass}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -766,7 +789,7 @@ const Dashboard = (() => {
                 </div>
                 <span class="iface-status ${stateClass}">${iface.state}</span>
             </div>
-        `}).join('');
+        `;
     }
 
     function updateServices(services) {
@@ -776,23 +799,46 @@ const Dashboard = (() => {
             return;
         }
 
-        el.innerHTML = services.map(svc => {
-            const name = svc.name.replace('networktap-', '');
-            const displayName = name.charAt(0).toUpperCase() + name.slice(1);
-            const statusClass = svc.running ? 'online' : 'offline';
-            const statusLabel = svc.running ? 'Running' : 'Stopped';
-            return `
-                <div class="service-item">
-                    <div class="service-status-indicator ${statusClass}">
-                        <span class="status-dot ${statusClass}"></span>
-                    </div>
-                    <div class="service-info">
-                        <div class="service-name">${escapeHtml(displayName)}</div>
-                        <div class="service-meta">${statusLabel} - ${svc.enabled}</div>
-                    </div>
+        const items = el.querySelectorAll('.service-item');
+        if (items.length !== services.length) {
+            // Service count changed — full rebuild
+            el.innerHTML = services.map(svc => buildServiceHtml(svc)).join('');
+        } else {
+            // Update existing items in-place
+            services.forEach((svc, i) => {
+                const statusClass = svc.running ? 'online' : 'offline';
+                const statusLabel = svc.running ? 'Running' : 'Stopped';
+                const name = svc.name.replace('networktap-', '');
+                const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+
+                const dot = items[i].querySelector('.status-dot');
+                if (dot) dot.className = 'status-dot ' + statusClass;
+                const indicator = items[i].querySelector('.service-status-indicator');
+                if (indicator) indicator.className = 'service-status-indicator ' + statusClass;
+                const nameEl = items[i].querySelector('.service-name');
+                if (nameEl) nameEl.textContent = displayName;
+                const meta = items[i].querySelector('.service-meta');
+                if (meta) meta.textContent = statusLabel + ' - ' + svc.enabled;
+            });
+        }
+    }
+
+    function buildServiceHtml(svc) {
+        const name = svc.name.replace('networktap-', '');
+        const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+        const statusClass = svc.running ? 'online' : 'offline';
+        const statusLabel = svc.running ? 'Running' : 'Stopped';
+        return `
+            <div class="service-item">
+                <div class="service-status-indicator ${statusClass}">
+                    <span class="status-dot ${statusClass}"></span>
                 </div>
-            `;
-        }).join('');
+                <div class="service-info">
+                    <div class="service-name">${escapeHtml(displayName)}</div>
+                    <div class="service-meta">${statusLabel} - ${svc.enabled}</div>
+                </div>
+            </div>
+        `;
     }
 
     function updateTrafficChart(interfaces) {
@@ -809,14 +855,26 @@ const Dashboard = (() => {
         const chart = document.getElementById('traffic-chart');
         if (!chart) return;
 
-        chart.innerHTML = deltas.map(d => {
-            const pct = Math.max(3, (d / maxDelta) * 100);
-            return `<div class="sparkline-bar" style="height:${pct}%" title="${d.toLocaleString()} pkts"></div>`;
-        }).join('');
+        // Pad deltas at front so total length = MAX_TRAFFIC - 1
+        const totalBars = MAX_TRAFFIC - 1;
+        const padded = [];
+        for (let i = 0; i < totalBars - deltas.length; i++) padded.push(0);
+        for (const d of deltas) padded.push(d);
 
-        const remaining = MAX_TRAFFIC - 1 - deltas.length;
-        for (let i = 0; i < remaining; i++) {
-            chart.innerHTML = `<div class="sparkline-bar" style="height:3%"></div>` + chart.innerHTML;
+        const bars = chart.children;
+        if (bars.length !== totalBars) {
+            // First render or bar count changed — rebuild
+            chart.innerHTML = padded.map(d => {
+                const pct = Math.max(3, (d / maxDelta) * 100);
+                return `<div class="sparkline-bar" style="height:${pct}%" title="${d.toLocaleString()} pkts"></div>`;
+            }).join('');
+        } else {
+            // Update existing bars in-place (no layout reflow)
+            for (let i = 0; i < totalBars; i++) {
+                const pct = Math.max(3, (padded[i] / maxDelta) * 100);
+                bars[i].style.height = pct + '%';
+                bars[i].title = padded[i].toLocaleString() + ' pkts';
+            }
         }
     }
 
@@ -829,14 +887,34 @@ const Dashboard = (() => {
             return;
         }
 
-        el.innerHTML = recent.map(a => `
+        const entries = el.querySelectorAll('.alert-entry');
+        if (entries.length !== recent.length) {
+            // Count changed — full rebuild
+            el.innerHTML = recent.map(a => buildAlertEntryHtml(a)).join('');
+        } else {
+            // Update existing entries in-place
+            recent.forEach((a, i) => {
+                const sev = entries[i].querySelector('.severity');
+                if (sev) { sev.className = 'severity severity-' + (a.severity || 3); sev.textContent = severityLabel(a.severity); }
+                const time = entries[i].querySelector('.alert-time');
+                if (time) time.textContent = formatTime(a.timestamp);
+                const msg = entries[i].querySelector('.alert-msg');
+                if (msg) msg.textContent = a.signature || a.message || '';
+                const src = entries[i].querySelector('.alert-src');
+                if (src) src.textContent = a.source;
+            });
+        }
+    }
+
+    function buildAlertEntryHtml(a) {
+        return `
             <div class="alert-entry">
                 <span class="severity severity-${a.severity || 3}">${severityLabel(a.severity)}</span>
                 <span class="alert-time">${formatTime(a.timestamp)}</span>
                 <span class="alert-msg">${escapeHtml(a.signature || a.message || '')}</span>
                 <span class="alert-src">${escapeHtml(a.source)}</span>
             </div>
-        `).join('');
+        `;
     }
 
     function severityLabel(s) {

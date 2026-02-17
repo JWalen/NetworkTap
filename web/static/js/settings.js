@@ -338,7 +338,7 @@ const Settings = (() => {
         btn.textContent = 'Creating...';
 
         try {
-            const result = await api('/api/backup/create', {
+            const result = await api('/api/backup/', {
                 method: 'POST',
                 body: { description: desc },
             });
@@ -346,7 +346,7 @@ const Settings = (() => {
             if (result.success && result.filename) {
                 // Download the backup
                 const creds = getCredentials();
-                const response = await fetch(`/api/backup/download/${result.filename}`, {
+                const response = await fetch(`/api/backup/${result.filename}/download`, {
                     headers: { 'Authorization': 'Basic ' + btoa(creds.user + ':' + creds.pass) }
                 });
                 const blob = await response.blob();
@@ -388,13 +388,23 @@ const Settings = (() => {
             formData.append('file', file);
 
             const creds = getCredentials();
-            const response = await fetch('/api/backup/restore', {
+            // Upload the backup file first
+            const uploadResp = await fetch('/api/backup/upload', {
                 method: 'POST',
                 headers: { 'Authorization': 'Basic ' + btoa(creds.user + ':' + creds.pass) },
                 body: formData,
             });
-
-            const result = await response.json();
+            const uploadResult = await uploadResp.json();
+            if (!uploadResult.success || !uploadResult.filename) {
+                toast(uploadResult.message || uploadResult.detail || 'Upload failed', 'error');
+                return;
+            }
+            // Restore from the uploaded backup
+            const restoreResp = await fetch(`/api/backup/${encodeURIComponent(uploadResult.filename)}/restore`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Basic ' + btoa(creds.user + ':' + creds.pass) },
+            });
+            const result = await restoreResp.json();
             toast(result.message || 'Restore complete', result.success ? 'success' : 'error');
             fileInput.value = '';
         } catch (e) {
@@ -409,7 +419,7 @@ const Settings = (() => {
     async function loadBackups() {
         const listEl = document.getElementById('backup-list');
         try {
-            const data = await api('/api/backup/list');
+            const data = await api('/api/backup/');
             if (!data.backups || data.backups.length === 0) {
                 listEl.innerHTML = '<div class="empty-state"><h3>No backups found</h3></div>';
                 return;
@@ -438,7 +448,7 @@ const Settings = (() => {
 
     async function downloadBackup(filename) {
         const creds = getCredentials();
-        const response = await fetch(`/api/backup/download/${encodeURIComponent(filename)}`, {
+        const response = await fetch(`/api/backup/${encodeURIComponent(filename)}/download`, {
             headers: { 'Authorization': 'Basic ' + btoa(creds.user + ':' + creds.pass) }
         });
         const blob = await response.blob();
@@ -450,87 +460,189 @@ const Settings = (() => {
         URL.revokeObjectURL(url);
     }
 
+    function cfgToggle(id, label, value) {
+        return `<div class="form-group">
+            <label class="form-label">${label}</label>
+            <select id="${id}" data-cfg="${id}" style="width:100%">
+                <option value="true" ${value ? 'selected' : ''}>Enabled</option>
+                <option value="false" ${!value ? 'selected' : ''}>Disabled</option>
+            </select>
+        </div>`;
+    }
+
+    function cfgInput(id, label, value, type = 'text', help = '') {
+        const h = help ? `<p class="form-help">${help}</p>` : '';
+        return `<div class="form-group">
+            <label class="form-label">${label}</label>
+            <input type="${type}" id="${id}" data-cfg="${id}" value="${escapeHtml(String(value ?? ''))}" style="width:100%">
+            ${h}
+        </div>`;
+    }
+
+    function cfgSelect(id, label, value, options) {
+        const opts = options.map(o => `<option value="${o}" ${value === o ? 'selected' : ''}>${o}</option>`).join('');
+        return `<div class="form-group">
+            <label class="form-label">${label}</label>
+            <select id="${id}" data-cfg="${id}" style="width:100%">${opts}</select>
+        </div>`;
+    }
+
     async function renderConfigTab(container) {
-        let config = {};
+        let c = {};
         try {
-            config = await api('/api/config/');
+            c = await api('/api/config/');
         } catch {}
 
         container.innerHTML = `
-            <div class="grid-2">
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">System</span>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Operating Mode</label>
-                        <input type="text" value="${escapeHtml(config.mode || 'unknown')}" readonly style="width:100%">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Capture Interface</label>
-                        <input type="text" value="${escapeHtml(config.capture_interface || 'auto')}" readonly style="width:100%">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Management Interface</label>
-                        <input type="text" value="${escapeHtml(config.management_interface || 'auto')}" readonly style="width:100%">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Web Port</label>
-                        <input type="text" value="${config.web_port || 8443}" readonly style="width:100%">
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Capture</span>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Capture Directory</label>
-                        <input type="text" value="${escapeHtml(config.capture_dir || '/var/lib/networktap/captures')}" readonly style="width:100%">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Rotation Interval</label>
-                        <input type="text" value="${config.capture_rotate_seconds || 3600}s" readonly style="width:100%">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Compression</label>
-                        <input type="text" value="${config.capture_compress ? 'Enabled' : 'Disabled'}" readonly style="width:100%">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Retention</label>
-                        <input type="text" value="${config.retention_days || 7} days" readonly style="width:100%">
-                    </div>
+            <!-- Read-only system info -->
+            <div class="card" style="margin-bottom:16px;opacity:0.8;">
+                <div class="card-header"><span class="card-title">System (Read-Only)</span></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 16px;">
+                    <div class="form-group"><label class="form-label">Mode</label><input value="${escapeHtml(c.mode || '?')}" readonly style="width:100%"></div>
+                    <div class="form-group"><label class="form-label">NIC1</label><input value="${escapeHtml(c.nic1 || '?')}" readonly style="width:100%"></div>
+                    <div class="form-group"><label class="form-label">NIC2</label><input value="${escapeHtml(c.nic2 || '?')}" readonly style="width:100%"></div>
+                    <div class="form-group"><label class="form-label">Bridge</label><input value="${escapeHtml(c.bridge_name || '?')}" readonly style="width:100%"></div>
+                    <div class="form-group"><label class="form-label">Capture Iface</label><input value="${escapeHtml(c.capture_interface || '?')}" readonly style="width:100%"></div>
+                    <div class="form-group"><label class="form-label">Mgmt Iface</label><input value="${escapeHtml(c.management_interface || '?')}" readonly style="width:100%"></div>
                 </div>
             </div>
 
-            <div class="grid-2" style="margin-top:24px">
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">IDS Status</span>
+            <form id="config-form">
+                <div class="grid-2">
+                    <!-- Capture -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Capture</span></div>
+                        ${cfgInput('capture_dir', 'Capture Directory', c.capture_dir)}
+                        ${cfgInput('capture_iface', 'Capture Interface', c.capture_iface, 'text', '"auto" or interface name')}
+                        ${cfgInput('capture_rotate_seconds', 'Rotation Interval (sec)', c.capture_rotate_seconds, 'number')}
+                        ${cfgInput('capture_file_limit', 'Max Rotated Files', c.capture_file_limit, 'number', '0 = unlimited')}
+                        ${cfgInput('capture_snaplen', 'Snap Length', c.capture_snaplen, 'number', '0 = full packet')}
+                        ${cfgInput('capture_filter', 'BPF Filter', c.capture_filter, 'text', 'Empty = capture all')}
+                        ${cfgToggle('capture_compress', 'Compress Rotated PCAPs', c.capture_compress)}
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Suricata</label>
-                        <input type="text" value="${config.suricata_enabled ? 'Enabled' : 'Disabled'}" readonly style="width:100%">
+
+                    <!-- Retention -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Retention</span></div>
+                        ${cfgInput('retention_days', 'Retention Days', c.retention_days, 'number')}
+                        ${cfgInput('min_free_disk_pct', 'Min Free Disk %', c.min_free_disk_pct, 'number', 'Emergency cleanup threshold')}
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Zeek</label>
-                        <input type="text" value="${config.zeek_enabled ? 'Enabled' : 'Disabled'}" readonly style="width:100%">
+
+                    <!-- Suricata -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Suricata IDS</span></div>
+                        ${cfgToggle('suricata_enabled', 'Enabled', c.suricata_enabled)}
+                        ${cfgInput('suricata_iface', 'Interface', c.suricata_iface, 'text', '"auto" or interface name')}
+                    </div>
+
+                    <!-- Zeek -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Zeek IDS</span></div>
+                        ${cfgToggle('zeek_enabled', 'Enabled', c.zeek_enabled)}
+                        ${cfgInput('zeek_iface', 'Interface', c.zeek_iface, 'text', '"auto" or interface name')}
+                    </div>
+
+                    <!-- Web -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Web Dashboard</span></div>
+                        ${cfgInput('web_host', 'Listen Host', c.web_host)}
+                        ${cfgInput('web_port', 'Listen Port', c.web_port, 'number')}
+                    </div>
+
+                    <!-- TLS -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">TLS / HTTPS</span></div>
+                        ${cfgToggle('tls_enabled', 'Enabled', c.tls_enabled)}
+                        ${cfgInput('tls_cert', 'Certificate Path', c.tls_cert)}
+                        ${cfgInput('tls_key', 'Private Key Path', c.tls_key)}
+                    </div>
+
+                    <!-- Syslog -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Syslog Forwarding</span></div>
+                        ${cfgToggle('syslog_enabled', 'Enabled', c.syslog_enabled)}
+                        ${cfgInput('syslog_server', 'Server', c.syslog_server)}
+                        ${cfgInput('syslog_port', 'Port', c.syslog_port, 'number')}
+                        ${cfgSelect('syslog_protocol', 'Protocol', c.syslog_protocol, ['udp', 'tcp'])}
+                        ${cfgSelect('syslog_format', 'Format', c.syslog_format, ['syslog', 'json'])}
+                    </div>
+
+                    <!-- Logging -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Logging</span></div>
+                        ${cfgSelect('log_level', 'Log Level', c.log_level, ['DEBUG', 'INFO', 'WARNING', 'ERROR'])}
+                    </div>
+
+                    <!-- WiFi Capture -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">WiFi Capture</span></div>
+                        ${cfgToggle('wifi_capture_enabled', 'Enabled', c.wifi_capture_enabled)}
+                        ${cfgInput('wifi_capture_channel', 'Channel', c.wifi_capture_channel, 'number')}
+                        ${cfgInput('wifi_capture_max_size_mb', 'Max File Size (MB)', c.wifi_capture_max_size_mb, 'number')}
+                        ${cfgInput('wifi_capture_max_files', 'Max Files', c.wifi_capture_max_files, 'number')}
+                        ${cfgInput('wifi_capture_filter', 'BPF Filter', c.wifi_capture_filter, 'text', 'Empty = capture all')}
+                    </div>
+
+                    <!-- AI -->
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">AI / Anomaly Detection</span></div>
+                        ${cfgToggle('anomaly_detection_enabled', 'Anomaly Detection', c.anomaly_detection_enabled)}
+                        ${cfgSelect('anomaly_sensitivity', 'Sensitivity', c.anomaly_sensitivity, ['low', 'medium', 'high'])}
+                        ${cfgInput('anomaly_interval', 'Check Interval (sec)', c.anomaly_interval, 'number')}
+                        ${cfgToggle('ai_assistant_enabled', 'AI Assistant', c.ai_assistant_enabled)}
+                        ${cfgInput('ollama_url', 'Ollama URL', c.ollama_url)}
+                        ${cfgInput('ollama_model', 'Ollama Model', c.ollama_model)}
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Edit Config</span>
-                    </div>
-                    <p class="form-help">
-                        To modify settings, edit the configuration file on the server:<br><br>
-                        <code>sudo nano /etc/networktap.conf</code><br><br>
-                        Then restart the web service:<br><br>
-                        <code>sudo systemctl restart networktap-web</code>
-                    </p>
+                <div style="margin-top:20px;display:flex;gap:12px;align-items:center;">
+                    <button type="submit" class="btn btn-primary" id="cfg-save-btn">Save Configuration</button>
+                    <span id="cfg-save-status" style="color:var(--text-secondary);font-size:0.85rem;"></span>
+                    <p class="form-help" style="margin:0;">Some changes (web port, TLS, mode) require a service restart to take effect.</p>
                 </div>
-            </div>
+            </form>
         `;
+
+        document.getElementById('config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('cfg-save-btn');
+            const statusEl = document.getElementById('cfg-save-status');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            statusEl.textContent = '';
+
+            // Collect all data-cfg fields
+            const body = {};
+            document.querySelectorAll('[data-cfg]').forEach(el => {
+                const key = el.dataset.cfg;
+                let val = el.value;
+                // Convert select booleans
+                if (val === 'true') val = true;
+                else if (val === 'false') val = false;
+                // Convert number inputs
+                else if (el.type === 'number' && val !== '') val = Number(val);
+                body[key] = val;
+            });
+
+            try {
+                const result = await api('/api/config/', {
+                    method: 'PUT',
+                    body: JSON.stringify(body),
+                });
+                if (result.success) {
+                    toast(result.message, 'success');
+                    statusEl.textContent = 'Saved';
+                } else {
+                    toast(result.message || 'Save failed', 'error');
+                    if (result.errors) statusEl.textContent = result.errors.join('; ');
+                }
+            } catch (err) {
+                toast('Failed to save: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save Configuration';
+            }
+        });
     }
 
     return { 

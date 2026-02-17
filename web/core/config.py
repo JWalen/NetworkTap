@@ -93,6 +93,13 @@ class NetworkTapConfig:
     log_dir: str = "/var/log/networktap"
     log_level: str = "INFO"
 
+    # WiFi Capture
+    wifi_capture_enabled: bool = False
+    wifi_capture_channel: int = 11
+    wifi_capture_max_size_mb: int = 100
+    wifi_capture_max_files: int = 50
+    wifi_capture_filter: str = ""
+
     # AI Features
     anomaly_detection_enabled: bool = True
     anomaly_sensitivity: str = "medium"
@@ -144,6 +151,11 @@ class NetworkTapConfig:
             syslog_format=raw.get("SYSLOG_FORMAT", cls.syslog_format),
             log_dir=raw.get("LOG_DIR", cls.log_dir),
             log_level=raw.get("LOG_LEVEL", cls.log_level),
+            wifi_capture_enabled=raw.get("WIFI_CAPTURE_ENABLED", "no").lower() == "yes",
+            wifi_capture_channel=int(raw.get("WIFI_CAPTURE_CHANNEL", cls.wifi_capture_channel)),
+            wifi_capture_max_size_mb=int(raw.get("WIFI_CAPTURE_MAX_SIZE_MB", cls.wifi_capture_max_size_mb)),
+            wifi_capture_max_files=int(raw.get("WIFI_CAPTURE_MAX_FILES", cls.wifi_capture_max_files)),
+            wifi_capture_filter=raw.get("WIFI_CAPTURE_FILTER", cls.wifi_capture_filter),
             anomaly_detection_enabled=raw.get("ANOMALY_DETECTION_ENABLED", "yes").lower() == "yes",
             anomaly_sensitivity=raw.get("ANOMALY_SENSITIVITY", cls.anomaly_sensitivity),
             anomaly_interval=int(raw.get("ANOMALY_INTERVAL", cls.anomaly_interval)),

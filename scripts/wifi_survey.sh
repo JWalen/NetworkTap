@@ -58,16 +58,16 @@ check_tools() {
 scan_networks() {
     local iface="$1"
     local timeout="${2:-10}"
-    
-    log "Scanning WiFi networks on $iface..."
-    
+
+    log "Scanning WiFi networks on $iface..." >&2
+
     # Ensure interface is up
     ip link set "$iface" up 2>/dev/null || true
-    
+
     # Try iw first (newer)
     if command -v iw &>/dev/null; then
         timeout "$timeout" iw dev "$iface" scan 2>/dev/null || {
-            log "  iw scan failed, trying iwlist..."
+            log "  iw scan failed, trying iwlist..." >&2
             timeout "$timeout" iwlist "$iface" scan 2>/dev/null || {
                 error "Failed to scan networks"
             }
@@ -283,9 +283,18 @@ run_survey() {
     # Create survey directory
     mkdir -p "$SURVEY_DIR"
     
-    # Run scan
-    local scan_output=$(scan_networks "$WIFI_IFACE" 15)
-    
+    # Run scan — declare variable separately so exit code isn't masked by `local`
+    local scan_output
+    scan_output=$(scan_networks "$WIFI_IFACE" 15) || error "WiFi scan returned no data"
+
+    # Verify we got actual scan data (not just whitespace)
+    if [[ -z "$(echo "$scan_output" | grep -E '^BSS |Address:')" ]]; then
+        log "WARNING: Scan returned no access point data"
+        echo "[]" > "$SURVEY_FILE"
+        log "Survey complete: 0 access points detected"
+        return 0
+    fi
+
     # Parse results
     local survey_json=""
     if echo "$scan_output" | grep -q "^BSS"; then
@@ -295,7 +304,15 @@ run_survey() {
         # iwlist format
         survey_json=$(parse_iwlist_scan "$scan_output")
     fi
-    
+
+    # Validate JSON isn't empty/broken before saving
+    if [[ -z "$survey_json" ]] || [[ "$survey_json" == "[]" ]]; then
+        log "WARNING: Parsed survey data is empty"
+        echo "[]" > "$SURVEY_FILE"
+        log "Survey complete: 0 access points detected"
+        return 0
+    fi
+
     # Save to file
     echo "$survey_json" > "$SURVEY_FILE"
     

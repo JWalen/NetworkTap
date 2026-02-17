@@ -25,7 +25,7 @@ QUICK_COMMANDS = [
     {"label": "Capture Status", "cmd": "systemctl status networktap-capture"},
     {"label": "Suricata Status", "cmd": "systemctl status networktap-suricata"},
     {"label": "Zeek Status", "cmd": "systemctl status networktap-zeek"},
-    {"label": "Recent Syslog", "cmd": "tail -50 /var/log/syslog"},
+    {"label": "Recent Syslog", "cmd": "journalctl --no-pager -n 50"},
     {"label": "Network Connections", "cmd": "ss -tuln"},
     {"label": "System Uptime", "cmd": "uptime"},
 ]

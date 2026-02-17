@@ -165,7 +165,9 @@ const Terminal = (() => {
         ws = new WebSocket(`${proto}//${location.host}/ws/terminal`);
 
         ws.onopen = () => {
-            ws.send(JSON.stringify({ user: creds.user, pass: creds.pass }));
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ user: creds.user, pass: creds.pass }));
+            }
         };
 
         ws.onmessage = (e) => {
@@ -175,9 +177,10 @@ const Terminal = (() => {
             if (msg.type === 'auth') {
                 if (msg.data === 'ok') {
                     appendOutput('Connected. Type a command or use quick commands above.\n', 'system-msg');
-                    document.getElementById('terminal-input').disabled = false;
-                    document.getElementById('terminal-send').disabled = false;
-                    document.getElementById('terminal-input').focus();
+                    const inputEl = document.getElementById('terminal-input');
+                    const sendEl = document.getElementById('terminal-send');
+                    if (inputEl) { inputEl.disabled = false; inputEl.focus(); }
+                    if (sendEl) sendEl.disabled = false;
                 } else {
                     appendOutput('Authentication failed. Check credentials in Settings.\n', 'stderr-line');
                 }
@@ -192,10 +195,12 @@ const Terminal = (() => {
         };
 
         ws.onclose = () => {
+            const inputEl = document.getElementById('terminal-input');
+            const sendEl = document.getElementById('terminal-send');
+            if (inputEl) inputEl.disabled = true;
+            if (sendEl) sendEl.disabled = true;
             appendOutput('Disconnected.\n', 'system-msg');
-            document.getElementById('terminal-input').disabled = true;
-            document.getElementById('terminal-send').disabled = true;
-            // Reconnect after 3s
+            // Reconnect after 3s if still on terminal page
             setTimeout(() => {
                 if (document.getElementById('terminal-output')) {
                     connectTerminalWs();
@@ -303,5 +308,12 @@ const Terminal = (() => {
         });
     }
 
-    return { render };
+    function cleanup() {
+        if (ws) {
+            try { ws.close(); } catch (e) { /* ignore */ }
+            ws = null;
+        }
+    }
+
+    return { render, cleanup };
 })();

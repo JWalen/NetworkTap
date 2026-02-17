@@ -117,6 +117,11 @@ const App = (() => {
             refreshInterval = null;
         }
 
+        // Call cleanup on previous page if it has one
+        if (currentPage && pages[currentPage] && typeof pages[currentPage].cleanup === 'function') {
+            try { pages[currentPage].cleanup(); } catch (e) { /* ignore */ }
+        }
+
         // Render page
         currentPage = page;
         const container = document.getElementById('content');
@@ -225,11 +230,12 @@ async function api(url, options = {}) {
 }
 
 function updateLoadingIndicator() {
-    // Add/remove loading class to body for global loading indicator
+    // Add/remove loading state class to body for global loading indicator
+    // Note: uses 'is-loading' to avoid conflict with .loading CSS (display:flex)
     if (activeRequests > 0) {
-        document.body.classList.add('loading');
+        document.body.classList.add('is-loading');
     } else {
-        document.body.classList.remove('loading');
+        document.body.classList.remove('is-loading');
     }
 }
 

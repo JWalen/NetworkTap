@@ -11,22 +11,22 @@ const WiFi = (() => {
             </div>
 
             <div class="tabs">
-                <button class="tab-button active" data-tab="overview">Overview</button>
-                <button class="tab-button" data-tab="client">Client Mode</button>
-                <button class="tab-button" data-tab="ap">Access Point</button>
-                <button class="tab-button" data-tab="capture">Packet Capture</button>
-                <button class="tab-button" data-tab="survey">Site Survey</button>
-                <button class="tab-button" data-tab="ids">Wireless IDS</button>
-                <button class="tab-button" data-tab="tracking">Client Tracking</button>
+                <button class="tab active" data-tab="overview">Overview</button>
+                <button class="tab" data-tab="client">Client Mode</button>
+                <button class="tab" data-tab="ap">Access Point</button>
+                <button class="tab" data-tab="capture">Packet Capture</button>
+                <button class="tab" data-tab="survey">Site Survey</button>
+                <button class="tab" data-tab="ids">Wireless IDS</button>
+                <button class="tab" data-tab="tracking">Client Tracking</button>
             </div>
 
             <div class="tab-content" id="wifi-content"></div>
         `;
 
         // Tab switching
-        container.querySelectorAll('.tab-button').forEach(btn => {
+        container.querySelectorAll('.tab').forEach(btn => {
             btn.addEventListener('click', () => {
-                container.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                container.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentTab = btn.dataset.tab;
                 renderTab(container.querySelector('#wifi-content'));
@@ -113,28 +113,30 @@ const WiFi = (() => {
 
     async function loadOverview() {
         try {
+            const setEl = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
             // Client mode status
             const clientStatus = await api('/api/wifi/status');
-            document.getElementById('client-status').innerHTML = clientStatus.connected 
+            setEl('client-status', clientStatus.connected
                 ? `<div class="status-good">Connected to ${clientStatus.ssid || 'network'}</div>
                    <div class="stat-row"><span>IP:</span><span>${clientStatus.ip || 'N/A'}</span></div>`
-                : '<div class="status-warn">Not connected</div>';
+                : '<div class="status-warn">Not connected</div>');
 
             // AP status
             const apStatus = await api('/api/wifi/ap/status');
-            document.getElementById('ap-status').innerHTML = apStatus.running
+            setEl('ap-status', apStatus.running
                 ? `<div class="status-good">Running</div>
                    <div class="stat-row"><span>SSID:</span><span>${apStatus.ssid || 'N/A'}</span></div>
                    <div class="stat-row"><span>Clients:</span><span>${apStatus.clients || 0}</span></div>`
-                : '<div class="status-off">Stopped</div>';
+                : '<div class="status-off">Stopped</div>');
 
             // Capture status
             const captureStatus = await api('/api/wifi/capture/status');
-            document.getElementById('capture-status').innerHTML = captureStatus.running
+            setEl('capture-status', captureStatus.running
                 ? `<div class="status-good">Active</div>
                    <div class="stat-row"><span>Channel:</span><span>${captureStatus.channel || 'N/A'}</span></div>
                    <div class="stat-row"><span>Files:</span><span>${captureStatus.file_count || 0}</span></div>`
-                : '<div class="status-off">Stopped</div>';
+                : '<div class="status-off">Stopped</div>');
 
             // Recent alerts
             const alerts = await api('/api/wifi/ids/alerts?since_minutes=60');
@@ -146,14 +148,14 @@ const WiFi = (() => {
                     </div>
                 `).join('')
                 : '<div class="empty-state">No recent wireless alerts</div>';
-            document.getElementById('recent-alerts').innerHTML = alertsHtml;
+            setEl('recent-alerts', alertsHtml);
 
             // Tracked clients
             const clients = await api('/api/wifi/clients/stats');
-            document.getElementById('tracked-clients').innerHTML = `
+            setEl('tracked-clients', `
                 <div class="stat-row"><span>Total:</span><span>${clients.total_clients || 0}</span></div>
                 <div class="stat-row"><span>Active:</span><span>${clients.active_clients || 0}</span></div>
-            `;
+            `);
         } catch (error) {
             console.error('Error loading overview:', error);
         }
@@ -162,6 +164,48 @@ const WiFi = (() => {
     // ═══════════════════════════════════════════════════════════════════════
     // CLIENT MODE TAB
     // ═══════════════════════════════════════════════════════════════════════
+    function signalToPercent(dbm) {
+        // Map dBm to 0-100%: -30 dBm = 100%, -90 dBm = 0%
+        return Math.max(0, Math.min(100, ((dbm + 90) / 60) * 100));
+    }
+
+    function signalToLabel(dbm) {
+        if (dbm >= -50) return 'Excellent';
+        if (dbm >= -60) return 'Good';
+        if (dbm >= -70) return 'Fair';
+        return 'Weak';
+    }
+
+    function signalToColor(dbm) {
+        if (dbm >= -50) return 'var(--green, #22c55e)';
+        if (dbm >= -60) return 'var(--accent, #00d4aa)';
+        if (dbm >= -70) return 'var(--yellow, #eab308)';
+        return 'var(--red, #ef4444)';
+    }
+
+    function securityBadge(sec) {
+        const s = (sec || 'Open').toUpperCase();
+        if (s.includes('WPA2')) return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;background:rgba(34,197,94,0.15);color:#22c55e;">WPA2</span>`;
+        if (s.includes('WPA')) return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;background:rgba(59,130,246,0.15);color:#3b82f6;">WPA</span>`;
+        if (s.includes('WEP')) return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;background:rgba(245,158,11,0.15);color:#f59e0b;">WEP</span>`;
+        return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;background:rgba(239,68,68,0.15);color:#ef4444;">Open</span>`;
+    }
+
+    function signalBar(dbm) {
+        const pct = signalToPercent(dbm);
+        const color = signalToColor(dbm);
+        return `<div style="display:flex;align-items:center;gap:8px;min-width:140px;">
+            <div style="flex:1;height:6px;background:var(--border,#1e2938);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width 0.3s;"></div>
+            </div>
+            <span style="font-size:0.8rem;color:var(--text-secondary,#94a3b8);white-space:nowrap;">${dbm} dBm</span>
+        </div>`;
+    }
+
+    function escapeAttr(str) {
+        return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
     async function renderClientMode(container) {
         container.innerHTML = `
             <div class="card">
@@ -171,8 +215,8 @@ const WiFi = (() => {
 
             <div class="card">
                 <div class="card-header">Available Networks</div>
-                <button class="btn btn-primary" onclick="WiFi.scanNetworks()">
-                    <i class="icon">📡</i> Scan Networks
+                <button class="btn btn-primary" id="scan-btn" onclick="WiFi.scanNetworks()">
+                    Scan Networks
                 </button>
                 <div id="network-list" style="margin-top: 1rem;">Click scan to see available networks</div>
             </div>
@@ -188,8 +232,11 @@ const WiFi = (() => {
                         <label>Password</label>
                         <input type="password" id="connect-psk" required>
                     </div>
-                    <button type="submit" class="btn btn-primary">Connect</button>
-                    <button type="button" class="btn btn-secondary" onclick="WiFi.disconnect()">Disconnect</button>
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary" id="connect-btn">Connect</button>
+                        <button type="button" class="btn btn-secondary" onclick="WiFi.disconnect()">Disconnect</button>
+                        <button type="button" class="btn btn-danger" onclick="WiFi.forgetNetwork()">Forget Network</button>
+                    </div>
                 </form>
             </div>
         `;
@@ -200,17 +247,24 @@ const WiFi = (() => {
             e.preventDefault();
             const ssid = document.getElementById('connect-ssid').value;
             const psk = document.getElementById('connect-psk').value;
+            const btn = document.getElementById('connect-btn');
+
+            btn.disabled = true;
+            btn.textContent = 'Connecting...';
 
             try {
                 const result = await api('/api/wifi/connect', {
                     method: 'POST',
                     body: JSON.stringify({ ssid, psk })
                 });
-                
+
                 toast(result.success ? result.message : 'Connection failed', result.success ? 'success' : 'error');
                 if (result.success) loadClientStatus();
             } catch (error) {
                 toast('Failed to connect: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Connect';
             }
         });
     }
@@ -218,26 +272,38 @@ const WiFi = (() => {
     async function loadClientStatus() {
         try {
             const status = await api('/api/wifi/status');
-            const html = status.connected 
-                ? `
+            let html;
+            if (status.connected) {
+                const sig = status.signal ? parseInt(status.signal) : null;
+                html = `
                     <div class="status-good">Connected</div>
                     <div class="stat-row"><span>SSID:</span><span>${status.ssid || 'N/A'}</span></div>
                     <div class="stat-row"><span>IP Address:</span><span>${status.ip || 'N/A'}</span></div>
-                    <div class="stat-row"><span>State:</span><span>${status.state || 'N/A'}</span></div>
-                `
-                : '<div class="status-warn">Not connected to any network</div>';
-            
-            document.getElementById('client-details').innerHTML = html;
+                    ${sig !== null ? `<div class="stat-row"><span>Signal:</span><span>${signalBar(sig)} <span style="font-size:0.8rem;color:var(--text-secondary);">${signalToLabel(sig)}</span></span></div>` : ''}
+                    ${status.frequency ? `<div class="stat-row"><span>Frequency:</span><span>${status.frequency} MHz</span></div>` : ''}
+                    <div class="stat-row"><span>WPA:</span><span>${status.wpa || 'N/A'}</span></div>
+                    <div class="stat-row"><span>Link:</span><span>${status.link || 'N/A'}</span></div>
+                `;
+            } else {
+                html = '<div class="status-warn">Not connected to any network</div>';
+            }
+
+            const el = document.getElementById('client-details');
+            if (el) el.innerHTML = html;
         } catch (error) {
-            document.getElementById('client-details').innerHTML = '<div class="status-error">Error loading status</div>';
+            const el = document.getElementById('client-details');
+            if (el) el.innerHTML = '<div class="status-error">Error loading status</div>';
         }
     }
 
     window.WiFi = window.WiFi || {};
     window.WiFi.scanNetworks = async function() {
         const listEl = document.getElementById('network-list');
+        if (!listEl) return;
+        const scanBtn = document.getElementById('scan-btn');
+        if (scanBtn) { scanBtn.disabled = true; scanBtn.textContent = 'Scanning...'; }
         listEl.innerHTML = '<div class="loading">Scanning... (this may take up to 30 seconds)</div>';
-        
+
         try {
             const result = await api('/api/wifi/scan');
             if (result.networks && result.networks.length > 0) {
@@ -247,6 +313,8 @@ const WiFi = (() => {
                             <tr>
                                 <th>SSID</th>
                                 <th>Signal</th>
+                                <th>Ch</th>
+                                <th>Security</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -254,9 +322,11 @@ const WiFi = (() => {
                             ${result.networks.map(n => `
                                 <tr>
                                     <td>${n.ssid}</td>
-                                    <td>${n.raw}</td>
+                                    <td>${signalBar(n.signal)}</td>
+                                    <td>${n.channel || '?'}</td>
+                                    <td>${securityBadge(n.security)}</td>
                                     <td>
-                                        <button class="btn btn-sm" onclick="document.getElementById('connect-ssid').value='${n.ssid}'">
+                                        <button class="btn btn-sm" onclick="document.getElementById('connect-ssid').value='${escapeAttr(n.ssid)}'; document.getElementById('connect-psk').focus();">
                                             Select
                                         </button>
                                     </td>
@@ -264,12 +334,15 @@ const WiFi = (() => {
                             `).join('')}
                         </tbody>
                     </table>
+                    <p style="margin-top:0.5rem;color:var(--text-muted);font-size:0.85rem;">${result.networks.length} network${result.networks.length !== 1 ? 's' : ''} found</p>
                 `;
             } else {
                 listEl.innerHTML = '<div class="empty-state">No networks found</div>';
             }
         } catch (error) {
             listEl.innerHTML = `<div class="status-error">Scan failed: ${error.message}</div>`;
+        } finally {
+            if (scanBtn) { scanBtn.disabled = false; scanBtn.textContent = 'Scan Networks'; }
         }
     };
 
@@ -280,6 +353,18 @@ const WiFi = (() => {
             loadClientStatus();
         } catch (error) {
             toast('Failed to disconnect: ' + error.message, 'error');
+        }
+    };
+
+    window.WiFi.forgetNetwork = async function() {
+        try {
+            const result = await api('/api/wifi/forget', { method: 'POST' });
+            toast(result.message || 'Network forgotten', result.success ? 'success' : 'error');
+            document.getElementById('connect-ssid').value = '';
+            document.getElementById('connect-psk').value = '';
+            loadClientStatus();
+        } catch (error) {
+            toast('Failed to forget network: ' + error.message, 'error');
         }
     };
 
@@ -343,7 +428,8 @@ const WiFi = (() => {
                     <div class="stat-row"><span>Clients:</span><span>${status.clients || 0}</span></div>
                 ` : ''}
             `;
-            document.getElementById('ap-details').innerHTML = detailsHtml;
+            const detailsEl = document.getElementById('ap-details');
+            if (detailsEl) detailsEl.innerHTML = detailsHtml;
 
             // Load clients
             const clients = await api('/api/wifi/ap/clients');
@@ -360,10 +446,12 @@ const WiFi = (() => {
                     </tbody>
                 </table>`
                 : '<div class="empty-state">No clients connected</div>';
-            document.getElementById('ap-clients').innerHTML = clientsHtml;
+            const clientsEl = document.getElementById('ap-clients');
+            if (clientsEl) clientsEl.innerHTML = clientsHtml;
 
         } catch (error) {
-            document.getElementById('ap-details').innerHTML = '<div class="status-error">Error loading status</div>';
+            const el = document.getElementById('ap-details');
+            if (el) el.innerHTML = '<div class="status-error">Error loading status</div>';
         }
     }
 
@@ -439,9 +527,11 @@ const WiFi = (() => {
                 ${status.file_count !== undefined ? `<div class="stat-row"><span>Files:</span><span>${status.file_count}</span></div>` : ''}
                 ${status.total_size ? `<div class="stat-row"><span>Total Size:</span><span>${status.total_size}</span></div>` : ''}
             `;
-            document.getElementById('capture-details').innerHTML = html;
+            const el = document.getElementById('capture-details');
+            if (el) el.innerHTML = html;
         } catch (error) {
-            document.getElementById('capture-details').innerHTML = '<div class="status-error">Error loading status</div>';
+            const el = document.getElementById('capture-details');
+            if (el) el.innerHTML = '<div class="status-error">Error loading status</div>';
         }
     }
 
@@ -462,9 +552,11 @@ const WiFi = (() => {
                     </tbody>
                 </table>`
                 : '<div class="empty-state">No capture files found</div>';
-            document.getElementById('capture-files').innerHTML = filesHtml;
+            const el = document.getElementById('capture-files');
+            if (el) el.innerHTML = filesHtml;
         } catch (error) {
-            document.getElementById('capture-files').innerHTML = '<div class="status-error">Error loading files</div>';
+            const el = document.getElementById('capture-files');
+            if (el) el.innerHTML = '<div class="status-error">Error loading files</div>';
         }
     }
 
@@ -548,7 +640,8 @@ const WiFi = (() => {
             const results = await api('/api/wifi/survey/results');
             
             if (!results.access_points || results.access_points.length === 0) {
-                document.getElementById('survey-results').innerHTML = '<div class="empty-state">No access points found. Run a survey.</div>';
+                const el = document.getElementById('survey-results');
+                if (el) el.innerHTML = '<div class="empty-state">No access points found. Run a survey.</div>';
                 return;
             }
 
@@ -581,7 +674,8 @@ const WiFi = (() => {
                     ${results.recommended_channel ? `<br><strong>Recommended Channel:</strong> ${results.recommended_channel}` : ''}
                 </p>
             `;
-            document.getElementById('survey-results').innerHTML = apsHtml;
+            const surveyEl = document.getElementById('survey-results');
+            if (surveyEl) surveyEl.innerHTML = apsHtml;
 
             // Channel utilization
             const channels = await api('/api/wifi/survey/channels');
@@ -598,10 +692,12 @@ const WiFi = (() => {
                             </div>
                         </div>
                     `).join('');
-                document.getElementById('channel-chart').innerHTML = chartHtml;
+                const chEl = document.getElementById('channel-chart');
+                if (chEl) chEl.innerHTML = chartHtml;
             }
         } catch (error) {
-            document.getElementById('survey-results').innerHTML = '<div class="status-error">Error loading results</div>';
+            const el = document.getElementById('survey-results');
+            if (el) el.innerHTML = '<div class="status-error">Error loading results</div>';
         }
     }
 
@@ -656,9 +752,11 @@ const WiFi = (() => {
                     </tbody>
                 </table>`
                 : '<div class="empty-state">No wireless alerts in the last 24 hours</div>';
-            document.getElementById('ids-alerts').innerHTML = alertsHtml;
+            const el = document.getElementById('ids-alerts');
+            if (el) el.innerHTML = alertsHtml;
         } catch (error) {
-            document.getElementById('ids-alerts').innerHTML = '<div class="status-error">Error loading alerts</div>';
+            const el = document.getElementById('ids-alerts');
+            if (el) el.innerHTML = '<div class="status-error">Error loading alerts</div>';
         }
     }
 
@@ -691,9 +789,11 @@ const WiFi = (() => {
                     </tbody>
                 </table>`
                 : '<div class="empty-state">No rogue APs detected</div>';
-            document.getElementById('rogue-aps').innerHTML = roguesHtml;
+            const el = document.getElementById('rogue-aps');
+            if (el) el.innerHTML = roguesHtml;
         } catch (error) {
-            document.getElementById('rogue-aps').innerHTML = '<div class="status-error">Error loading rogues</div>';
+            const el = document.getElementById('rogue-aps');
+            if (el) el.innerHTML = '<div class="status-error">Error loading rogues</div>';
         }
     }
 
@@ -751,9 +851,11 @@ const WiFi = (() => {
                     </div>
                 ` : ''}
             `;
-            document.getElementById('client-stats').innerHTML = html;
+            const el = document.getElementById('client-stats');
+            if (el) el.innerHTML = html;
         } catch (error) {
-            document.getElementById('client-stats').innerHTML = '<div class="status-error">Error loading stats</div>';
+            const el = document.getElementById('client-stats');
+            if (el) el.innerHTML = '<div class="status-error">Error loading stats</div>';
         }
     }
 
@@ -782,13 +884,13 @@ const WiFi = (() => {
                     </tbody>
                 </table>`
                 : '<div class="empty-state">No clients tracked yet</div>';
-            document.getElementById('tracked-clients-list').innerHTML = clientsHtml;
+            const el = document.getElementById('tracked-clients-list');
+            if (el) el.innerHTML = clientsHtml;
         } catch (error) {
-            document.getElementById('tracked-clients-list').innerHTML = '<div class="status-error">Error loading clients</div>';
+            const el = document.getElementById('tracked-clients-list');
+            if (el) el.innerHTML = '<div class="status-error">Error loading clients</div>';
         }
     }
-
-    window.WiFi.loadTrackedClients = loadTrackedClients;
 
     function cleanup() {
         if (statusInterval) {
@@ -797,5 +899,23 @@ const WiFi = (() => {
         }
     }
 
-    return { render, cleanup };
+    return {
+        render,
+        cleanup,
+        // Expose methods for inline onclick handlers
+        scanNetworks: window.WiFi.scanNetworks,
+        disconnect: window.WiFi.disconnect,
+        forgetNetwork: window.WiFi.forgetNetwork,
+        startAP: window.WiFi.startAP,
+        stopAP: window.WiFi.stopAP,
+        restartAP: window.WiFi.restartAP,
+        startCapture: window.WiFi.startCapture,
+        stopCapture: window.WiFi.stopCapture,
+        restartCapture: window.WiFi.restartCapture,
+        loadCaptureFiles: loadCaptureFiles,
+        runSurvey: window.WiFi.runSurvey,
+        scanRogues: window.WiFi.scanRogues,
+        loadIDSAlerts: loadIDSAlerts,
+        loadTrackedClients: loadTrackedClients,
+    };
 })();

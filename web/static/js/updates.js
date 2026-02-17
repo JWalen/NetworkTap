@@ -99,10 +99,11 @@ const Updates = (() => {
                     <span><code>${result.repository || 'JWalen/NetworkTap'}</code></span>
                 </div>
             `;
-            document.getElementById('current-version').innerHTML = html;
+            const el = document.getElementById('current-version');
+            if (el) el.innerHTML = html;
         } catch (error) {
-            document.getElementById('current-version').innerHTML = 
-                '<div class="status-error">Error loading version info</div>';
+            const el = document.getElementById('current-version');
+            if (el) el.innerHTML = '<div class="status-error">Error loading version info</div>';
         }
     }
 
@@ -148,10 +149,11 @@ const Updates = (() => {
                 }
             }
 
-            document.getElementById('update-status').innerHTML = statusHtml;
+            const statusEl = document.getElementById('update-status');
+            if (statusEl) statusEl.innerHTML = statusHtml;
         } catch (error) {
-            document.getElementById('update-status').innerHTML = 
-                '<div class="status-off">Idle</div>';
+            const statusEl = document.getElementById('update-status');
+            if (statusEl) statusEl.innerHTML = '<div class="status-off">Idle</div>';
         }
     }
 
@@ -160,8 +162,8 @@ const Updates = (() => {
             const result = await api('/api/update/history');
             
             if (!result.history || result.history.length === 0) {
-                document.getElementById('update-history').innerHTML = 
-                    '<div class="empty-state">No update history available</div>';
+                const el = document.getElementById('update-history');
+                if (el) el.innerHTML = '<div class="empty-state">No update history available</div>';
                 return;
             }
 
@@ -194,10 +196,11 @@ const Updates = (() => {
                 </table>
             `;
             
-            document.getElementById('update-history').innerHTML = historyHtml;
+            const el = document.getElementById('update-history');
+            if (el) el.innerHTML = historyHtml;
         } catch (error) {
-            document.getElementById('update-history').innerHTML = 
-                '<div class="status-error">Error loading update history</div>';
+            const el = document.getElementById('update-history');
+            if (el) el.innerHTML = '<div class="status-error">Error loading update history</div>';
         }
     }
 
@@ -393,8 +396,6 @@ const Updates = (() => {
         }
     };
 
-    window.Updates.loadHistory = loadHistory;
-
     function cleanup() {
         if (updateInterval) {
             clearInterval(updateInterval);
@@ -402,5 +403,14 @@ const Updates = (() => {
         }
     }
 
-    return { render, cleanup };
+    const mod = {
+        render,
+        cleanup,
+        checkForUpdates: window.Updates.checkForUpdates,
+        performUpdate: window.Updates.performUpdate,
+        downloadOnly: window.Updates.downloadOnly,
+        rollback: window.Updates.rollback,
+        loadHistory: loadHistory,
+    };
+    return mod;
 })();

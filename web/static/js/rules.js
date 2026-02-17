@@ -72,8 +72,9 @@ const Rules = (() => {
     async function loadStats() {
         try {
             const data = await api('/api/rules/stats');
-            
-            document.getElementById('rule-stats').innerHTML = `
+            const el = document.getElementById('rule-stats');
+            if (!el) return;
+            el.innerHTML = `
                 <div class="stat-card">
                     <div class="stat-label">Total Rules</div>
                     <div class="stat-value">${data.total.toLocaleString()}</div>
@@ -92,8 +93,8 @@ const Rules = (() => {
                 </div>
             `;
         } catch (e) {
-            document.getElementById('rule-stats').innerHTML = 
-                '<p class="form-help" style="color:var(--red)">Failed to load rule statistics</p>';
+            const el = document.getElementById('rule-stats');
+            if (el) el.innerHTML = '<p class="form-help" style="color:var(--red)">Failed to load rule statistics</p>';
         }
     }
 
@@ -101,7 +102,8 @@ const Rules = (() => {
         try {
             const data = await api('/api/rules/classtypes');
             const select = document.getElementById('rule-classtype');
-            
+            if (!select) return;
+
             data.classtypes.forEach(ct => {
                 const option = document.createElement('option');
                 option.value = ct;
@@ -114,11 +116,16 @@ const Rules = (() => {
     }
 
     async function loadRules() {
-        searchTerm = document.getElementById('rule-search').value.trim();
-        selectedClasstype = document.getElementById('rule-classtype').value;
-        enabledOnly = document.getElementById('rule-enabled-only').checked;
-
+        const searchEl = document.getElementById('rule-search');
+        const classtypeEl = document.getElementById('rule-classtype');
+        const enabledEl = document.getElementById('rule-enabled-only');
         const container = document.getElementById('rules-list');
+        if (!container || !searchEl) return;
+
+        searchTerm = searchEl.value.trim();
+        selectedClasstype = classtypeEl ? classtypeEl.value : '';
+        enabledOnly = enabledEl ? enabledEl.checked : false;
+
         container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
         try {

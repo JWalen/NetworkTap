@@ -328,35 +328,39 @@ const AI = (() => {
     }
 
     function showOllamaSetup() {
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal" style="max-width:500px">
+        const overlay = document.createElement('div');
+        overlay.className = 'modal';
+        overlay.style.display = 'flex';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        overlay.innerHTML = `
+            <div class="modal-content" style="max-width:500px">
                 <div class="modal-header">
-                    <h3>Setup AI Assistant</h3>
-                    <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+                    <span class="modal-title">Setup AI Assistant</span>
+                    <button class="modal-close" id="ollama-modal-close">&times;</button>
                 </div>
-                <div class="modal-body">
-                    <p>To use the AI Assistant, Ollama needs to be installed and running.</p>
-                    <h4 style="margin-top:16px">Option 1: Run setup script</h4>
-                    <p style="font-size:0.9rem;color:var(--text-muted)">SSH into your device and run:</p>
-                    <pre style="background:var(--bg-secondary);padding:12px;border-radius:8px;overflow-x:auto">sudo bash /opt/networktap/setup/configure_ai.sh</pre>
-                    
-                    <h4 style="margin-top:16px">Option 2: Manual install</h4>
-                    <pre style="background:var(--bg-secondary);padding:12px;border-radius:8px;overflow-x:auto">curl -fsSL https://ollama.com/install.sh | sh
+                <p>To use the AI Assistant, Ollama needs to be installed and running.</p>
+
+                <h4 style="margin-top:16px">Option 1: Run setup script</h4>
+                <p style="font-size:0.9rem;color:var(--text-muted)">SSH into your device and run:</p>
+                <pre style="background:var(--bg-secondary);padding:12px;border-radius:8px;overflow-x:auto;margin:8px 0">sudo bash /opt/networktap/setup/configure_ai.sh</pre>
+
+                <h4 style="margin-top:16px">Option 2: Manual install</h4>
+                <pre style="background:var(--bg-secondary);padding:12px;border-radius:8px;overflow-x:auto;margin:8px 0">curl -fsSL https://ollama.com/install.sh | sh
 ollama pull tinyllama</pre>
-                    
-                    <p style="margin-top:16px;font-size:0.85rem;color:var(--text-muted)">
-                        After installation, restart the web service or reload this page.
-                    </p>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
+
+                <p style="margin-top:16px;font-size:0.85rem;color:var(--text-muted)">
+                    After installation, restart the web service or reload this page.
+                </p>
+
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+                    <button class="btn btn-secondary" id="ollama-modal-cancel">Close</button>
                     <button class="btn btn-primary" onclick="location.reload()">Refresh Page</button>
                 </div>
             </div>
         `;
-        document.body.appendChild(modal);
+        document.body.appendChild(overlay);
+        document.getElementById('ollama-modal-close').addEventListener('click', () => overlay.remove());
+        document.getElementById('ollama-modal-cancel').addEventListener('click', () => overlay.remove());
     }
 
     function formatTime(isoTime) {

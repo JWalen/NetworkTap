@@ -136,16 +136,18 @@ const Alerts = (() => {
     function renderAlerts(alerts) {
         const tbody = document.getElementById('alert-table-body');
         const empty = document.getElementById('alert-empty');
+        if (!tbody) return;
 
         if (alerts.length === 0) {
             tbody.innerHTML = '';
-            empty.hidden = false;
+            if (empty) empty.hidden = false;
             return;
         }
 
-        empty.hidden = true;
+        if (empty) empty.hidden = true;
         alertCount = alerts.length;
-        document.getElementById('alert-total').textContent = `(${alertCount})`;
+        const totalEl = document.getElementById('alert-total');
+        if (totalEl) totalEl.textContent = `(${alertCount})`;
 
         tbody.innerHTML = alerts.map(a => alertRow(a)).join('');
         filterTable();
@@ -178,7 +180,8 @@ const Alerts = (() => {
         }
 
         alertCount++;
-        document.getElementById('alert-total').textContent = `(${alertCount})`;
+        const totalEl = document.getElementById('alert-total');
+        if (totalEl) totalEl.textContent = `(${alertCount})`;
 
         const emptyEl = document.getElementById('alert-empty');
         if (emptyEl) emptyEl.hidden = true;
@@ -234,5 +237,9 @@ const Alerts = (() => {
         }
     }
 
-    return { render };
+    function cleanup() {
+        WS.onAlert = null;
+    }
+
+    return { render, cleanup };
 })();
