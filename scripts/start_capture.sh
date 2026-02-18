@@ -31,9 +31,12 @@ if [[ "$CAPTURE_SNAPLEN" -gt 0 ]] 2>/dev/null; then
     TCPDUMP_ARGS+=(-s "$CAPTURE_SNAPLEN")
 fi
 
-# File limit
+# File limit — tcpdump requires -W when using -G with -z
+# If no limit is set, use a large value to allow unlimited rotation
 if [[ "$CAPTURE_FILE_LIMIT" -gt 0 ]] 2>/dev/null; then
     TCPDUMP_ARGS+=(-W "$CAPTURE_FILE_LIMIT")
+else
+    TCPDUMP_ARGS+=(-W 100000)
 fi
 
 # Post-rotation compression
