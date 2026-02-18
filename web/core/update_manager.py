@@ -98,19 +98,14 @@ class UpdateManager:
             comparison = compare_versions(current_version, latest_release.version)
             update_available = comparison < 0  # current < latest
             
-            # Find tarball and checksum
-            tarball_url = None
+            # Use GitHub's API tarball URL (always available, contains full repo)
+            tarball_url = latest_release.tarball_url
+
+            # Only use checksum if a .tar.gz.sha256 file exists matching the tarball
             checksum_url = None
-            
             for filename, url in latest_release.assets.items():
-                if filename.endswith(".tar.gz") and "networktap" in filename:
-                    tarball_url = url
-                if filename.endswith(".sha256"):
+                if filename.endswith(".tar.gz.sha256"):
                     checksum_url = url
-            
-            if not tarball_url:
-                # Fall back to GitHub's tarball URL
-                tarball_url = latest_release.tarball_url
             
             info = UpdateInfo(
                 current_version=current_version,
