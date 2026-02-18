@@ -3,7 +3,7 @@
 const App = (() => {
     const pages = {
         dashboard: Dashboard,
-        captures: Captures,
+        captures: Pcaps,
         alerts: Alerts,
         network: Network,
         pcaps: Pcaps,
@@ -97,10 +97,10 @@ const App = (() => {
         // Update title
         const titles = {
             dashboard: 'Dashboard',
-            captures: 'Packet Captures',
+            captures: 'Captures & PCAPs',
             alerts: 'IDS Alerts',
             network: 'Network',
-            pcaps: 'PCAP Files',
+            pcaps: 'Captures & PCAPs',
             terminal: 'Terminal',
             settings: 'Settings',
             stats: 'Traffic Statistics',

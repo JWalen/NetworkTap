@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NetworkTap</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg">
 </head>
@@ -14,7 +17,7 @@
             <img src="/static/img/logo.svg" alt="NetworkTap" class="sidebar-logo">
             <div class="sidebar-title-block">
                 <span class="sidebar-title">NetworkTap</span>
-                <span class="sidebar-version">v1.0.7</span>
+                <span class="sidebar-version">v1.0.8</span>
             </div>
         </div>
         <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
@@ -29,7 +32,7 @@
                 </svg>
                 <span class="nav-label">Dashboard</span>
             </a>
-            <a href="#captures" class="nav-item" data-page="captures" role="menuitem">
+            <a href="#pcaps" class="nav-item" data-page="pcaps" role="menuitem">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <circle cx="12" cy="12" r="10"/>
                     <circle cx="12" cy="12" r="3"/>
@@ -68,15 +71,6 @@
 
             <!-- Data & Logs Section -->
             <div class="nav-section-label">Data & Logs</div>
-            <a href="#pcaps" class="nav-item" data-page="pcaps" role="menuitem">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="16" y1="13" x2="8" y2="13"/>
-                    <line x1="16" y1="17" x2="8" y2="17"/>
-                </svg>
-                <span class="nav-label">PCAPs</span>
-            </a>
             <a href="#zeek" class="nav-item" data-page="zeek" role="menuitem">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>

@@ -1,4 +1,4 @@
-/* NetworkTap - PCAP File Browser with Filtering and Packet Viewer */
+/* NetworkTap - PCAP File Browser with Capture Control, Filtering and Packet Viewer */
 
 const Pcaps = (() => {
     let selectedFile = null;
@@ -21,14 +21,21 @@ const Pcaps = (() => {
         container.innerHTML = `
             <div class="stat-grid">
                 <div class="stat-card">
-                    <span class="stat-label">Total Files</span>
-                    <span class="stat-value" id="pcap-count">--</span>
+                    <span class="stat-label">Capture Status</span>
+                    <span class="stat-value" id="cap-status">--</span>
+                    <span class="stat-sub" id="cap-iface"></span>
                 </div>
                 <div class="stat-card">
-                    <span class="stat-label">Total Size</span>
-                    <span class="stat-value" id="pcap-total-size">--</span>
+                    <span class="stat-label">Total Files</span>
+                    <span class="stat-value" id="pcap-count">--</span>
+                    <span class="stat-sub" id="pcap-total-size"></span>
                 </div>
-                <div class="stat-card" style="grid-column: span 2">
+                <div class="stat-card">
+                    <span class="stat-label">Rotation</span>
+                    <span class="stat-value" id="cap-rotate">--</span>
+                    <span class="stat-sub" id="cap-compress"></span>
+                </div>
+                <div class="stat-card">
                     <span class="stat-label">Storage Usage</span>
                     <div class="storage-bar" style="margin-top:8px">
                         <div class="storage-bar-fill" id="storage-fill" style="width:0%"></div>
@@ -36,6 +43,18 @@ const Pcaps = (() => {
                     </div>
                     <span class="stat-sub" id="storage-detail" style="margin-top:8px"></span>
                 </div>
+            </div>
+
+            <!-- Capture Control -->
+            <div class="card" style="margin-bottom:24px">
+                <div class="card-header">
+                    <span class="card-title">Capture Control</span>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-primary" id="btn-start-capture">Start Capture</button>
+                        <button class="btn btn-danger" id="btn-stop-capture">Stop Capture</button>
+                    </div>
+                </div>
+                <p id="cap-filter-info" style="color:var(--text-muted);font-size:0.85rem;"></p>
             </div>
 
             <!-- Packet Viewer Panel -->
@@ -164,7 +183,27 @@ const Pcaps = (() => {
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">Capture Files</span>
-                    <button class="btn btn-sm btn-secondary" id="btn-refresh-pcaps">Refresh</button>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-sm btn-secondary" id="btn-refresh-pcaps">Refresh</button>
+                        <button class="btn btn-sm btn-primary" id="btn-download-all" title="Download all files as ZIP">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Download All
+                        </button>
+                        <button class="btn btn-sm btn-danger" id="btn-delete-all" title="Delete all capture files">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6l-2 14H7L5 6"/>
+                                <path d="M10 11v6"/>
+                                <path d="M14 11v6"/>
+                                <path d="M9 6V4h6v2"/>
+                            </svg>
+                            Delete All
+                        </button>
+                    </div>
                 </div>
                 <div id="pcap-list">
                     ${skeleton('row', 5)}
@@ -173,6 +212,10 @@ const Pcaps = (() => {
         `;
 
         document.getElementById('btn-refresh-pcaps').addEventListener('click', refresh);
+        document.getElementById('btn-download-all').addEventListener('click', downloadAll);
+        document.getElementById('btn-delete-all').addEventListener('click', deleteAll);
+        document.getElementById('btn-start-capture').addEventListener('click', startCapture);
+        document.getElementById('btn-stop-capture').addEventListener('click', stopCapture);
 
         // Filter input listeners
         const filterInputs = ['filter-src-ip', 'filter-dst-ip', 'filter-src-port', 'filter-dst-port', 'filter-protocol', 'filter-raw'];
@@ -190,27 +233,60 @@ const Pcaps = (() => {
         });
 
         await refresh();
-        App.setRefresh(refresh, 15000);
+        App.setRefresh(refresh, 10000);
     }
 
     async function refresh() {
         try {
-            const [pcaps, system] = await Promise.all([
+            const [pcaps, system, capStatus] = await Promise.all([
                 api('/api/pcaps/'),
                 api('/api/system/status'),
+                api('/api/capture/status'),
             ]);
 
-            updateStats(pcaps, system);
+            updateStats(pcaps, system, capStatus);
             updateFileList(pcaps.files || []);
         } catch (e) {
             console.error('Failed to refresh pcaps:', e);
         }
     }
 
-    function updateStats(pcaps, system) {
-        animateValue(document.getElementById('pcap-count'), pcaps.count || 0, v => v.toString());
-        animateValue(document.getElementById('pcap-total-size'), pcaps.total_size || 0, formatBytes);
+    function updateStats(pcaps, system, capStatus) {
+        // Capture status
+        const statusEl = document.getElementById('cap-status');
+        if (statusEl) {
+            statusEl.textContent = capStatus.running ? 'Active' : 'Stopped';
+            statusEl.style.color = capStatus.running ? 'var(--green)' : 'var(--text-muted)';
+        }
 
+        const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        setText('cap-iface', `Interface: ${capStatus.interface} (${capStatus.mode} mode)`);
+        setText('cap-rotate', formatCapDuration(capStatus.rotation_seconds));
+        setText('cap-compress', capStatus.compress ? 'Compression: ON' : 'Compression: OFF');
+
+        const filterInfo = document.getElementById('cap-filter-info');
+        if (filterInfo) filterInfo.textContent = capStatus.filter
+            ? `BPF Filter: ${capStatus.filter}`
+            : 'Capturing all traffic (no BPF filter)';
+
+        // Capture buttons
+        const startBtn = document.getElementById('btn-start-capture');
+        const stopBtn = document.getElementById('btn-stop-capture');
+        if (startBtn) startBtn.disabled = capStatus.running;
+        if (stopBtn) stopBtn.disabled = !capStatus.running;
+
+        // File stats
+        animateValue(document.getElementById('pcap-count'), pcaps.count || 0, v => v.toString());
+        const sizeEl = document.getElementById('pcap-total-size');
+        if (sizeEl) sizeEl.textContent = formatBytes(pcaps.total_size || 0);
+
+        // Bulk action buttons
+        const dlAllBtn = document.getElementById('btn-download-all');
+        const delAllBtn = document.getElementById('btn-delete-all');
+        if (dlAllBtn) dlAllBtn.disabled = !pcaps.count;
+        if (delAllBtn) delAllBtn.disabled = !pcaps.count;
+
+        // Storage
         const sys = system.system;
         if (sys) {
             const pct = Math.round(sys.disk_percent);
@@ -219,6 +295,12 @@ const Pcaps = (() => {
             document.getElementById('storage-detail').textContent =
                 `${formatBytes(sys.disk_used)} used of ${formatBytes(sys.disk_total)} (${formatBytes(sys.disk_free)} free)`;
         }
+    }
+
+    function formatCapDuration(seconds) {
+        if (seconds >= 3600) return (seconds / 3600) + 'h';
+        if (seconds >= 60) return (seconds / 60) + 'm';
+        return seconds + 's';
     }
 
     function updateFileList(files) {
@@ -268,8 +350,76 @@ const Pcaps = (() => {
                 <button class="btn btn-sm btn-primary" onclick="Pcaps.download('${escapeHtml(f.path)}')">
                     Download
                 </button>
+                <button class="btn btn-sm btn-danger" onclick="Pcaps.deleteFile('${escapeHtml(f.name)}')" title="Delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-2 14H7L5 6"/>
+                        <path d="M10 11v6"/>
+                        <path d="M14 11v6"/>
+                        <path d="M9 6V4h6v2"/>
+                    </svg>
+                </button>
             </div>
         `).join('');
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // CAPTURE CONTROL
+    // ══════════════════════════════════════════════════════════════════════════
+
+    async function startCapture() {
+        try {
+            const result = await api('/api/capture/start', { method: 'POST' });
+            toast(result.message, result.success ? 'success' : 'error');
+            await refresh();
+        } catch (e) {
+            toast('Failed to start capture: ' + e.message, 'error');
+        }
+    }
+
+    async function stopCapture() {
+        try {
+            const result = await api('/api/capture/stop', { method: 'POST' });
+            toast(result.message, result.success ? 'success' : 'error');
+            await refresh();
+        } catch (e) {
+            toast('Failed to stop capture: ' + e.message, 'error');
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // BULK ACTIONS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    async function downloadAll() {
+        toast('Preparing ZIP download...', 'info');
+        await downloadWithAuth('/api/pcaps/download-all', 'networktap_captures.zip');
+    }
+
+    async function deleteAll() {
+        if (!confirm('Delete ALL capture files? This cannot be undone.')) return;
+
+        try {
+            const result = await api('/api/pcaps/delete-all', { method: 'DELETE' });
+            toast(result.message, result.success ? 'success' : 'error');
+            await refresh();
+        } catch (e) {
+            toast('Failed to delete files: ' + e.message, 'error');
+        }
+    }
+
+    async function deleteFile(filename) {
+        if (!confirm(`Delete ${filename}?`)) return;
+
+        try {
+            const result = await api(`/api/capture/files/${encodeURIComponent(filename)}`, {
+                method: 'DELETE'
+            });
+            toast(result.message, result.success ? 'success' : 'error');
+            await refresh();
+        } catch (e) {
+            toast('Failed to delete file: ' + e.message, 'error');
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -721,6 +871,7 @@ const Pcaps = (() => {
     return {
         render,
         download,
+        deleteFile,
         showFilter,
         hideFilter,
         previewFilter,

@@ -3,10 +3,10 @@
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
-from core.auth import verify_credentials
-from core.capture_manager import list_pcap_files, get_pcap_path
+from core.auth import verify_credentials, require_admin
+from core.capture_manager import list_pcap_files, get_pcap_path, delete_all_pcap_files
 from core.config import get_config
 from core.pcap_analyzer import (
     get_pcap_metadata,
@@ -24,6 +24,8 @@ from core.pcap_analyzer import (
 from pathlib import Path
 from starlette.background import BackgroundTask
 import uuid
+import zipfile
+import io
 
 router = APIRouter()
 
@@ -42,6 +44,45 @@ async def list_pcaps(user: Annotated[str, Depends(verify_credentials)]):
         "total_size": total_size,
         "capture_dir": config.capture_dir,
     }
+
+
+@router.get("/download-all")
+async def download_all_pcaps(
+    user: Annotated[str, Depends(verify_credentials)],
+):
+    """Download all pcap files as a zip archive."""
+    config = get_config()
+    capture_dir = Path(config.capture_dir)
+    files = list_pcap_files()
+
+    if not files:
+        raise HTTPException(status_code=404, detail="No capture files found")
+
+    def generate_zip():
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for f in files:
+                file_path = (capture_dir / f["path"]).resolve()
+                if file_path.exists() and file_path.is_file():
+                    zf.write(str(file_path), f["name"])
+        buffer.seek(0)
+        return buffer
+
+    zip_buffer = generate_zip()
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=networktap_captures.zip"},
+    )
+
+
+@router.delete("/delete-all")
+async def delete_all_pcaps_endpoint(
+    user: Annotated[str, Depends(require_admin)],
+):
+    """Delete all pcap files (admin only)."""
+    return delete_all_pcap_files()
 
 
 @router.get("/{filename:path}/download")
