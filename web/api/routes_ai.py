@@ -211,7 +211,45 @@ async def get_ai_settings(user: Annotated[str, Depends(verify_credentials)]):
     }
 
 
-@router.post("/assistant/pull-model")
+@router.get("/models")
+async def list_models(user: Annotated[str, Depends(verify_credentials)]):
+    """List all installed Ollama models."""
+    import httpx
+
+    config = get_config()
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(f"{config.ollama_url}/api/tags")
+            if resp.status_code != 200:
+                return {"success": False, "models": [], "message": "Ollama not responding"}
+
+            data = resp.json()
+            models = []
+            for m in data.get("models", []):
+                models.append({
+                    "name": m.get("name", ""),
+                    "size": m.get("size", 0),
+                    "modified_at": m.get("modified_at", ""),
+                    "digest": m.get("digest", "")[:12],
+                    "family": m.get("details", {}).get("family", ""),
+                    "parameter_size": m.get("details", {}).get("parameter_size", ""),
+                    "quantization": m.get("details", {}).get("quantization_level", ""),
+                })
+
+            return {
+                "success": True,
+                "models": models,
+                "active_model": config.ollama_model,
+            }
+
+    except httpx.ConnectError:
+        return {"success": False, "models": [], "message": "Cannot connect to Ollama"}
+    except Exception as e:
+        return {"success": False, "models": [], "message": str(e)}
+
+
+@router.post("/models/pull")
 async def pull_model(
     user: Annotated[str, Depends(verify_credentials)],
     model: str = Query(default=None),
@@ -223,7 +261,7 @@ async def pull_model(
     model_name = model or config.ollama_model
 
     try:
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(timeout=600.0) as client:
             resp = await client.post(
                 f"{config.ollama_url}/api/pull",
                 json={"name": model_name, "stream": False},
@@ -236,5 +274,79 @@ async def pull_model(
         return {"success": False, "message": "Cannot connect to Ollama"}
     except httpx.TimeoutException:
         return {"success": False, "message": "Model pull timed out (this can take several minutes for large models)"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@router.post("/models/delete")
+async def delete_model(
+    user: Annotated[str, Depends(verify_credentials)],
+    model: str = Query(...),
+):
+    """Delete an installed Ollama model."""
+    import httpx
+
+    config = get_config()
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.request(
+                "DELETE",
+                f"{config.ollama_url}/api/delete",
+                json={"name": model},
+            )
+            if resp.status_code == 200:
+                return {"success": True, "message": f"Model '{model}' deleted"}
+            else:
+                return {"success": False, "message": f"Failed to delete model: {resp.text}"}
+    except httpx.ConnectError:
+        return {"success": False, "message": "Cannot connect to Ollama"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@router.post("/models/set-active")
+async def set_active_model(
+    user: Annotated[str, Depends(verify_credentials)],
+    model: str = Query(...),
+):
+    """Set the active AI model (updates config)."""
+    import re
+    from core.config import get_config as _get_config
+
+    config = get_config()
+
+    # Validate model name
+    if not re.match(r'^[a-zA-Z0-9._:/-]+$', model):
+        return {"success": False, "message": "Invalid model name"}
+
+    # Find config file and update OLLAMA_MODEL
+    from core.config import CONFIG_PATHS
+    conf_path = None
+    for p in CONFIG_PATHS:
+        if Path(p).exists():
+            conf_path = Path(p)
+            break
+
+    if not conf_path:
+        return {"success": False, "message": "Config file not found"}
+
+    try:
+        lines = conf_path.read_text().splitlines()
+        found = False
+        for i, line in enumerate(lines):
+            if line.strip().startswith("OLLAMA_MODEL="):
+                lines[i] = f"OLLAMA_MODEL={model}"
+                found = True
+                break
+        if not found:
+            lines.append(f"OLLAMA_MODEL={model}")
+
+        conf_path.write_text("\n".join(lines) + "\n")
+
+        # Clear config cache so new model is picked up
+        _get_config.cache_clear()
+
+        return {"success": True, "message": f"Active model set to '{model}'"}
     except Exception as e:
         return {"success": False, "message": str(e)}

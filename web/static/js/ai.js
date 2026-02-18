@@ -35,6 +35,20 @@ const AI = (() => {
                 </div>
             </div>
 
+            <!-- Model Management Card -->
+            <div class="card" style="margin-bottom:24px">
+                <div class="card-header">
+                    <span class="card-title">Model Management</span>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-sm btn-secondary" id="btn-refresh-models">Refresh</button>
+                        <button class="btn btn-sm btn-primary" id="btn-pull-model">Pull Model</button>
+                    </div>
+                </div>
+                <div id="models-list" style="overflow-x:auto">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+
             <!-- Recent Anomalies -->
             <div class="card" style="margin-bottom:24px">
                 <div class="card-header">
@@ -79,6 +93,8 @@ const AI = (() => {
         // Event handlers
         document.getElementById('anomaly-toggle').addEventListener('change', toggleAnomalyDetection);
         document.getElementById('btn-refresh-anomalies').addEventListener('click', loadAnomalies);
+        document.getElementById('btn-refresh-models').addEventListener('click', loadModels);
+        document.getElementById('btn-pull-model').addEventListener('click', showPullModelDialog);
         document.getElementById('btn-summarize').addEventListener('click', summarizeAlerts);
         document.getElementById('btn-clear-chat').addEventListener('click', clearChat);
         document.getElementById('btn-send').addEventListener('click', sendMessage);
@@ -101,6 +117,7 @@ const AI = (() => {
         await Promise.all([
             loadAISettings(),
             loadAnomalies(),
+            loadModels(),
         ]);
 
         App.setRefresh(() => {
@@ -369,6 +386,198 @@ ollama pull tinyllama</pre>
             return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } catch {
             return isoTime;
+        }
+    }
+
+    // ── Model Management ─────────────────────────────────────────
+
+    async function loadModels() {
+        const container = document.getElementById('models-list');
+        try {
+            const data = await api('/api/ai/models');
+
+            if (!data.success) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding:24px">
+                        <p style="color:var(--text-muted)">${escapeHtml(data.message || 'Cannot connect to Ollama')}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (!data.models || data.models.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding:24px">
+                        <h3>No models installed</h3>
+                        <p>Pull a model to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const activeModel = data.active_model || '';
+
+            container.innerHTML = `
+                <table class="table" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Size</th>
+                            <th>Family</th>
+                            <th>Quant</th>
+                            <th>Status</th>
+                            <th style="text-align:right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.models.map(m => {
+                            const isActive = m.name === activeModel || m.name.split(':')[0] === activeModel.split(':')[0];
+                            const sizeStr = formatModelSize(m.size);
+                            return `
+                                <tr>
+                                    <td style="font-family:monospace;font-weight:600">${escapeHtml(m.name)}</td>
+                                    <td>${sizeStr}</td>
+                                    <td>${escapeHtml(m.family || '-')}</td>
+                                    <td>${escapeHtml(m.quantization || '-')}</td>
+                                    <td>${isActive
+                                        ? '<span class="severity severity-4">Active</span>'
+                                        : '<span style="color:var(--text-muted)">Installed</span>'
+                                    }</td>
+                                    <td style="text-align:right;white-space:nowrap">
+                                        ${!isActive ? `<button class="btn btn-sm btn-primary btn-set-active" data-model="${escapeAttr(m.name)}" style="margin-right:4px">Set Active</button>` : ''}
+                                        <button class="btn btn-sm btn-secondary btn-delete-model" data-model="${escapeAttr(m.name)}">Delete</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            // Bind action buttons
+            container.querySelectorAll('.btn-set-active').forEach(btn => {
+                btn.addEventListener('click', () => setActiveModel(btn.dataset.model));
+            });
+            container.querySelectorAll('.btn-delete-model').forEach(btn => {
+                btn.addEventListener('click', () => deleteModel(btn.dataset.model));
+            });
+
+        } catch (e) {
+            container.innerHTML = `<div class="empty-state" style="padding:24px"><p>Failed to load models</p></div>`;
+        }
+    }
+
+    function formatModelSize(bytes) {
+        if (!bytes) return '-';
+        const gb = bytes / (1024 * 1024 * 1024);
+        if (gb >= 1) return gb.toFixed(1) + ' GB';
+        const mb = bytes / (1024 * 1024);
+        return mb.toFixed(0) + ' MB';
+    }
+
+    function escapeAttr(str) {
+        return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    async function setActiveModel(modelName) {
+        try {
+            const data = await api(`/api/ai/models/set-active?model=${encodeURIComponent(modelName)}`, { method: 'POST' });
+            if (data.success) {
+                toast(`Active model set to ${modelName}`, 'success');
+                loadModels();
+                loadAISettings();
+            } else {
+                toast(data.message || 'Failed to set active model', 'error');
+            }
+        } catch (e) {
+            toast('Failed to set active model', 'error');
+        }
+    }
+
+    async function deleteModel(modelName) {
+        if (!confirm(`Delete model "${modelName}"? This cannot be undone.`)) return;
+
+        try {
+            const data = await api(`/api/ai/models/delete?model=${encodeURIComponent(modelName)}`, { method: 'POST' });
+            if (data.success) {
+                toast(`Model "${modelName}" deleted`, 'success');
+                loadModels();
+            } else {
+                toast(data.message || 'Failed to delete model', 'error');
+            }
+        } catch (e) {
+            toast('Failed to delete model', 'error');
+        }
+    }
+
+    function showPullModelDialog() {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal';
+        overlay.style.display = 'flex';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        overlay.innerHTML = `
+            <div class="modal-content" style="max-width:450px">
+                <div class="modal-header">
+                    <span class="modal-title">Pull Model</span>
+                    <button class="modal-close" id="pull-modal-close">&times;</button>
+                </div>
+                <p style="margin-bottom:12px;font-size:0.9rem;color:var(--text-muted)">
+                    Enter an Ollama model name to download. Examples: <code>llama3.2</code>, <code>mistral</code>, <code>tinyllama</code>, <code>codellama:7b</code>
+                </p>
+                <input type="text" id="pull-model-name" placeholder="e.g. llama3.2" style="width:100%;margin-bottom:16px">
+                <div id="pull-progress" style="display:none;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div class="spinner" style="width:16px;height:16px"></div>
+                        <span id="pull-status-text">Pulling model...</span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--border)">
+                    <button class="btn btn-secondary" id="pull-modal-cancel">Cancel</button>
+                    <button class="btn btn-primary" id="pull-modal-confirm">Pull</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('pull-modal-close').addEventListener('click', () => overlay.remove());
+        document.getElementById('pull-modal-cancel').addEventListener('click', () => overlay.remove());
+        document.getElementById('pull-model-name').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') doPull();
+        });
+        document.getElementById('pull-modal-confirm').addEventListener('click', doPull);
+
+        async function doPull() {
+            const nameInput = document.getElementById('pull-model-name');
+            const name = nameInput.value.trim();
+            if (!name) return;
+
+            const progress = document.getElementById('pull-progress');
+            const confirmBtn = document.getElementById('pull-modal-confirm');
+            const statusText = document.getElementById('pull-status-text');
+
+            progress.style.display = 'block';
+            confirmBtn.disabled = true;
+            nameInput.disabled = true;
+            statusText.textContent = `Pulling ${name}... (this may take several minutes)`;
+
+            try {
+                const data = await api(`/api/ai/models/pull?model=${encodeURIComponent(name)}`, { method: 'POST' });
+                if (data.success) {
+                    toast(data.message, 'success');
+                    overlay.remove();
+                    loadModels();
+                } else {
+                    statusText.textContent = data.message || 'Pull failed';
+                    statusText.style.color = 'var(--red)';
+                    confirmBtn.disabled = false;
+                    nameInput.disabled = false;
+                }
+            } catch (e) {
+                statusText.textContent = 'Failed to pull model';
+                statusText.style.color = 'var(--red)';
+                confirmBtn.disabled = false;
+                nameInput.disabled = false;
+            }
         }
     }
 
