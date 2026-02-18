@@ -218,40 +218,67 @@ class UpdateManager:
             
             with tarfile.open(tarball_path, "r:gz") as tar:
                 tar.extractall(extract_dir)
-            
-            # Find the extracted directory (may have version prefix)
-            extracted_dirs = list(extract_dir.glob("networktap-*"))
-            if not extracted_dirs:
-                # Try without prefix
-                extracted_dirs = [extract_dir]
-            
-            source_dir = extracted_dirs[0]
-            
-            # Run update script with FORCE=yes to skip interactive prompt
-            self._update_status("installing", 60, "Installing update...")
-            update_script = Path(__file__).parent.parent.parent / "scripts" / "update.sh"
 
-            env = {**os.environ, "FORCE": "yes"}
+            # Find the extracted directory
+            # GitHub tarballs extract to "Owner-Repo-sha/" format
+            # Look for any single subdirectory that contains a VERSION file
+            source_dir = None
+            for child in extract_dir.iterdir():
+                if child.is_dir() and (child / "VERSION").exists():
+                    source_dir = child
+                    break
+
+            # Fallback: look for any single subdirectory
+            if not source_dir:
+                subdirs = [d for d in extract_dir.iterdir() if d.is_dir()]
+                if len(subdirs) == 1:
+                    source_dir = subdirs[0]
+                else:
+                    source_dir = extract_dir
+
+            logger.info(f"Source directory: {source_dir}")
+
+            # Verify source has required structure
+            for required in ("web", "scripts", "VERSION"):
+                if not (source_dir / required).exists():
+                    self._update_status("failed", 0, f"Invalid update package: missing {required}")
+                    return False
+
+            # Run update script with FORCE=yes and SKIP_WEB_RESTART=yes
+            self._update_status("installing", 60, "Installing update...")
+            update_script = source_dir / "scripts" / "update.sh"
+            if not update_script.exists():
+                update_script = Path(__file__).parent.parent.parent / "scripts" / "update.sh"
+
+            env = {**os.environ, "FORCE": "yes", "SKIP_WEB_RESTART": "yes"}
+
+            # Use sudo if not running as root
+            cmd = ["sudo", "bash", str(update_script), str(source_dir), str(self.install_dir)]
+            if os.geteuid() == 0:
+                cmd = ["bash", str(update_script), str(source_dir), str(self.install_dir)]
+
             proc = await asyncio.create_subprocess_exec(
-                str(update_script),
-                str(source_dir),
-                str(self.install_dir),
+                *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
             )
-            
+
             stdout, stderr = await proc.communicate()
-            
+
+            logger.info(f"Update script stdout: {stdout.decode()}")
+            if stderr:
+                logger.warning(f"Update script stderr: {stderr.decode()}")
+
             if proc.returncode != 0:
                 error_msg = stderr.decode()
                 logger.error(f"Update script failed: {error_msg}")
                 self._update_status("failed", 0, f"Installation failed: {error_msg}")
-                
+
                 # Attempt rollback
                 await self._rollback()
                 return False
-            
+
             # Update version file
             self.version_file.write_text(version + "\n")
             
@@ -264,6 +291,11 @@ class UpdateManager:
             
             self._update_status("complete", 100, "Update installed successfully")
             logger.info(f"Successfully updated to version {version}")
+
+            # Schedule web service restart so the new code is loaded
+            # Small delay so the status response can be sent first
+            asyncio.get_event_loop().call_later(3, self._restart_web_service)
+
             return True
             
         except Exception as e:
@@ -355,6 +387,19 @@ class UpdateManager:
         except Exception as e:
             logger.error(f"Failed to record update: {e}")
     
+    @staticmethod
+    def _restart_web_service():
+        """Restart the web service to load updated code."""
+        try:
+            logger.info("Restarting networktap-web service to load new version...")
+            subprocess.Popen(
+                ["sudo", "systemctl", "restart", "networktap-web"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception as e:
+            logger.error(f"Failed to restart web service: {e}")
+
     def get_update_history(self) -> list[dict]:
         """Get update history."""
         try:

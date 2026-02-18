@@ -46,6 +46,10 @@ class GitHubClient:
         self.repo = repo
         self.timeout = timeout
         self.base_url = "https://api.github.com"
+        self.headers = {
+            "User-Agent": "NetworkTap-Updater",
+            "Accept": "application/vnd.github+json",
+        }
         self._cache: dict[str, tuple[datetime, any]] = {}
         self._cache_ttl = timedelta(minutes=15)
     
@@ -77,7 +81,7 @@ class GitHubClient:
             return cached
         
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
                 # Get latest release (non-prerelease by default)
                 if not include_prerelease:
                     url = f"{self.base_url}/repos/{self.repo}/releases/latest"
@@ -122,7 +126,7 @@ class GitHubClient:
     async def get_release_by_tag(self, tag: str) -> Optional[GitHubRelease]:
         """Get a specific release by tag name."""
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
                 url = f"{self.base_url}/repos/{self.repo}/releases/tags/{tag}"
                 response = await client.get(url)
                 
@@ -140,7 +144,7 @@ class GitHubClient:
     async def list_releases(self, limit: int = 10) -> list[GitHubRelease]:
         """List recent releases."""
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
                 url = f"{self.base_url}/repos/{self.repo}/releases"
                 response = await client.get(url, params={"per_page": limit})
                 response.raise_for_status()

@@ -28,7 +28,12 @@ error() {
 
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        error "This script must be run as root"
+        # Allow non-root if called via sudo (SUDO_USER set) or FORCE mode
+        if [[ -n "${SUDO_USER:-}" ]] || [[ "${FORCE:-}" == "yes" ]]; then
+            log "Warning: Running as non-root (EUID=$EUID)"
+        else
+            error "This script must be run as root"
+        fi
     fi
 }
 
@@ -53,15 +58,21 @@ validate_source() {
 
 stop_services() {
     log "Stopping NetworkTap services..."
-    
+
     local services=(
-        "networktap-web"
         "networktap-capture"
         "networktap-suricata"
         "networktap-zeek"
         "networktap-stats"
     )
-    
+
+    # Only stop web service if not called from the web UI
+    if [[ "${SKIP_WEB_RESTART:-}" != "yes" ]]; then
+        services=("networktap-web" "${services[@]}")
+    else
+        log "  Skipping networktap-web (called from web UI)"
+    fi
+
     for svc in "${services[@]}"; do
         if systemctl is-active --quiet "$svc" 2>/dev/null; then
             log "  Stopping $svc..."
@@ -72,15 +83,21 @@ stop_services() {
 
 start_services() {
     log "Starting NetworkTap services..."
-    
+
     local services=(
-        "networktap-web"
         "networktap-capture"
         "networktap-suricata"
         "networktap-zeek"
         "networktap-stats"
     )
-    
+
+    # Only start web service if not called from the web UI
+    if [[ "${SKIP_WEB_RESTART:-}" != "yes" ]]; then
+        services=("networktap-web" "${services[@]}")
+    else
+        log "  Skipping networktap-web restart (called from web UI, will restart separately)"
+    fi
+
     for svc in "${services[@]}"; do
         if systemctl is-enabled --quiet "$svc" 2>/dev/null; then
             log "  Starting $svc..."
