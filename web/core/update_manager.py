@@ -99,14 +99,10 @@ class UpdateManager:
             update_available = comparison < 0  # current < latest
             
             # Use GitHub's API tarball URL (always available, contains full repo)
+            # Do NOT use release asset checksums — they're for CI-built tarballs,
+            # not the API tarball, so hashes will never match
             tarball_url = latest_release.tarball_url
 
-            # Only use checksum if a .tar.gz.sha256 file exists matching the tarball
-            checksum_url = None
-            for filename, url in latest_release.assets.items():
-                if filename.endswith(".tar.gz.sha256"):
-                    checksum_url = url
-            
             info = UpdateInfo(
                 current_version=current_version,
                 latest_version=latest_release.version,
@@ -114,7 +110,7 @@ class UpdateManager:
                 changelog=latest_release.body,
                 release_date=latest_release.published_at,
                 download_url=tarball_url,
-                checksum_url=checksum_url,
+                checksum_url=None,
             )
             
             self._update_status("idle", 0, "Check complete")
