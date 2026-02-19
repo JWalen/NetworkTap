@@ -23,8 +23,8 @@ info() { echo -e "${CYAN}[i]${NC} $*" | tee -a "$LOG_FILE"; }
 banner() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════╗"
-    echo "║         NetworkTap Installer v1.0.8              ║"
-    echo "║        OnLogic FR201 Network Tap Appliance       ║"
+    echo "║         NetworkTap Installer v1.0.9              ║"
+    echo "║      OnLogic FR201/FR202 Network Tap Appliance     ║"
     echo "╚══════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
@@ -102,6 +102,7 @@ run_setup_scripts() {
         "configure_firewall.sh"
         "configure_services.sh"
         "configure_console.sh"
+        "configure_display.sh"
         "configure_ai.sh"
     )
 

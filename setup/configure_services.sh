@@ -68,6 +68,12 @@ fi
 # Start console status display
 systemctl start networktap-console.service 2>/dev/null || true
 
+# Start front panel display (FR202)
+if [[ -e /dev/spidev0.0 ]]; then
+    systemctl enable networktap-display.service 2>/dev/null || true
+    systemctl start networktap-display.service 2>/dev/null || true
+fi
+
 echo "[+] Service status:"
 systemctl list-units --type=service --all 'networktap-*' --no-pager 2>/dev/null || true
 

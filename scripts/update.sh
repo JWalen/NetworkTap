@@ -64,6 +64,7 @@ stop_services() {
         "networktap-suricata"
         "networktap-zeek"
         "networktap-stats"
+        "networktap-display"
     )
 
     # Only stop web service if not called from the web UI
@@ -89,6 +90,7 @@ start_services() {
         "networktap-suricata"
         "networktap-zeek"
         "networktap-stats"
+        "networktap-display"
     )
 
     # Only start web service if not called from the web UI
