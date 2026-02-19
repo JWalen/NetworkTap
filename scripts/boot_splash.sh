@@ -67,6 +67,9 @@ cat << 'EOF'
 EOF
 echo -e "${NC}"
 
+APP_VERSION=$(cat /opt/networktap/VERSION 2>/dev/null || echo "unknown")
+echo -e "  ${BOLD}NetworkTap v${APP_VERSION}${NC}"
+echo ""
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BOLD}  System Information${NC}"
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
