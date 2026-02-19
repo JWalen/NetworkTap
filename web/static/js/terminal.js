@@ -13,6 +13,8 @@ const Terminal = (() => {
     let logFilter = '';
     let logAutoRefresh = false;
     let logRefreshTimer = null;
+    let filterTimeout = null;
+    let lineCountTimeout = null;
 
     async function render(container) {
         container.innerHTML = `
@@ -221,12 +223,16 @@ const Terminal = (() => {
 
         document.getElementById('log-line-count').addEventListener('change', (e) => {
             logLines = parseInt(e.target.value, 10);
-            fetchLogs();
+            // Debounce log fetch
+            if (lineCountTimeout) clearTimeout(lineCountTimeout);
+            lineCountTimeout = setTimeout(() => fetchLogs(), 300);
         });
 
         document.getElementById('log-filter').addEventListener('input', (e) => {
             logFilter = e.target.value.toLowerCase();
-            applyLogFilter();
+            // Debounce filter application
+            if (filterTimeout) clearTimeout(filterTimeout);
+            filterTimeout = setTimeout(() => applyLogFilter(), 300);
         });
 
         document.getElementById('log-auto-refresh-chk').addEventListener('change', (e) => {
@@ -312,6 +318,19 @@ const Terminal = (() => {
         if (ws) {
             try { ws.close(); } catch (e) { /* ignore */ }
             ws = null;
+        }
+        // Clear timers to prevent memory leaks
+        if (logRefreshTimer) {
+            clearInterval(logRefreshTimer);
+            logRefreshTimer = null;
+        }
+        if (filterTimeout) {
+            clearTimeout(filterTimeout);
+            filterTimeout = null;
+        }
+        if (lineCountTimeout) {
+            clearTimeout(lineCountTimeout);
+            lineCountTimeout = null;
         }
     }
 

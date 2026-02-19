@@ -6,6 +6,7 @@ import logging
 import re
 import subprocess
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -26,6 +27,7 @@ class PcapMetadata:
     data_link: str = ""
 
 
+@lru_cache(maxsize=1)
 def get_capinfos_path() -> Optional[str]:
     """Find capinfos binary (from Wireshark/tshark)."""
     for path in ["/usr/bin/capinfos", "/usr/local/bin/capinfos"]:
@@ -34,6 +36,7 @@ def get_capinfos_path() -> Optional[str]:
     return None
 
 
+@lru_cache(maxsize=1)
 def get_tshark_path() -> Optional[str]:
     """Find tshark binary."""
     for path in ["/usr/bin/tshark", "/usr/local/bin/tshark"]:
@@ -42,6 +45,7 @@ def get_tshark_path() -> Optional[str]:
     return None
 
 
+@lru_cache(maxsize=1)
 def get_tcpdump_path() -> Optional[str]:
     """Find tcpdump binary."""
     for path in ["/usr/sbin/tcpdump", "/usr/bin/tcpdump"]:
