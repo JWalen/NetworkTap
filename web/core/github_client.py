@@ -51,7 +51,7 @@ class GitHubClient:
             "Accept": "application/vnd.github+json",
         }
         self._cache: dict[str, tuple[datetime, any]] = {}
-        self._cache_ttl = timedelta(minutes=15)
+        self._cache_ttl = timedelta(minutes=5)
     
     def _get_cache(self, key: str) -> Optional[any]:
         """Get cached value if not expired."""
@@ -64,6 +64,10 @@ class GitHubClient:
     def _set_cache(self, key: str, value: any):
         """Store value in cache."""
         self._cache[key] = (datetime.now(), value)
+
+    def flush_cache(self):
+        """Clear all cached responses."""
+        self._cache.clear()
     
     async def get_latest_release(self, include_prerelease: bool = False) -> Optional[GitHubRelease]:
         """

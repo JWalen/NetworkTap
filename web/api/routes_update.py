@@ -65,10 +65,14 @@ async def get_current_version(user: Annotated[str, Depends(verify_credentials)])
 @router.get("/check")
 async def check_for_updates(
     user: Annotated[str, Depends(verify_credentials)],
-    include_prerelease: bool = False
+    include_prerelease: bool = False,
+    flush_cache: bool = False
 ):
     """Check for available updates."""
     manager = get_update_manager()
+
+    if flush_cache:
+        manager.github.flush_cache()
 
     try:
         info = await manager.check_for_updates(include_prerelease)

@@ -217,7 +217,7 @@ const Updates = (() => {
         checkEl.innerHTML = '<div class="loading">Checking for updates...</div>';
         
         try {
-            const result = await api('/api/update/check');
+            const result = await api('/api/update/check?flush_cache=true');
             
             if (result.update_available) {
                 checkEl.innerHTML = `
