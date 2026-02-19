@@ -3,6 +3,7 @@
 import heapq
 import json
 import logging
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -13,6 +14,10 @@ from typing import Optional
 from core.config import get_config
 
 logger = logging.getLogger("networktap.stats")
+
+# Cache for parsed connections with TTL
+_connections_cache = {"timestamp": 0, "data": None, "hours": 24}
+_CONN_CACHE_TTL = 30  # seconds
 
 
 @dataclass
@@ -56,7 +61,14 @@ class TrafficStats:
 
 
 def parse_zeek_conn_log(log_path: Path, hours: int = 24) -> list[dict]:
-    """Parse Zeek conn.log for connection data."""
+    """Parse Zeek conn.log for connection data with caching."""
+    # Use cached data if recent and same time range
+    current_time = time.time()
+    if (_connections_cache["data"] is not None and 
+        current_time - _connections_cache["timestamp"] < _CONN_CACHE_TTL and
+        _connections_cache["hours"] == hours):
+        return _connections_cache["data"]
+    
     connections = []
     
     if not log_path.exists():
@@ -114,6 +126,11 @@ def parse_zeek_conn_log(log_path: Path, hours: int = 24) -> list[dict]:
                 })
     except Exception as e:
         logger.error("Error parsing conn.log: %s", e)
+    
+    # Update cache
+    _connections_cache["timestamp"] = current_time
+    _connections_cache["data"] = connections
+    _connections_cache["hours"] = hours
     
     return connections
 
