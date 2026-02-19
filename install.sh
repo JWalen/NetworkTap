@@ -23,7 +23,7 @@ info() { echo -e "${CYAN}[i]${NC} $*" | tee -a "$LOG_FILE"; }
 banner() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════╗"
-    echo "║         NetworkTap Installer v1.0.14              ║"
+    echo "║         NetworkTap Installer v1.0.15              ║"
     echo "║      OnLogic FR201/FR202 Network Tap Appliance     ║"
     echo "╚══════════════════════════════════════════════════╝"
     echo -e "${NC}"

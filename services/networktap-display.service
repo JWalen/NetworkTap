@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStartPre=/bin/sleep 3
-ExecStart=/usr/bin/python3 /opt/networktap/scripts/display_status.py
+ExecStart=/opt/networktap/venv/bin/python3 /opt/networktap/scripts/display_status.py
 Restart=always
 RestartSec=10
 Environment=PYTHONUNBUFFERED=1
