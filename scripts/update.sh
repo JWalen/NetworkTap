@@ -242,8 +242,9 @@ verify_installation() {
 run_new_setup_scripts() {
     log "Running setup scripts for new features..."
 
-    # FR202 front panel display — run setup if SPI exists and service not yet enabled
-    if [[ -e /dev/spidev0.0 ]] && ! systemctl is-enabled --quiet networktap-display 2>/dev/null; then
+    # FR202 front panel display — run setup if service not yet enabled
+    # SPI may not exist yet (overlay added by setup, needs reboot)
+    if ! systemctl is-enabled --quiet networktap-display 2>/dev/null; then
         if [[ -f "$INSTALL_DIR/setup/configure_display.sh" ]]; then
             log "  Configuring FR202 front panel display..."
             bash "$INSTALL_DIR/setup/configure_display.sh" || log "  Warning: Display setup had issues"

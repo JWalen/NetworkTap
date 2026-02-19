@@ -3,8 +3,12 @@
 # Professional TUI display using dialog
 
 export TERM=linux
-export NCURSES_NO_UTF8_ACS=1
-export LC_ALL=C.UTF-8 2>/dev/null || export LC_ALL=C
+# Ensure UTF-8 for block character rendering
+if locale -a 2>/dev/null | grep -qi "C.UTF-8"; then
+    export LC_ALL=C.UTF-8
+elif locale -a 2>/dev/null | grep -qi "en_US.utf8"; then
+    export LC_ALL=en_US.UTF-8
+fi
 
 # Wait for system to be ready
 sleep 2

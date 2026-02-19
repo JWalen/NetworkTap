@@ -69,8 +69,8 @@ fi
 systemctl start networktap-console.service 2>/dev/null || true
 
 # Start front panel display (FR202)
-if [[ -e /dev/spidev0.0 ]]; then
-    systemctl enable networktap-display.service 2>/dev/null || true
+# Service is enabled by configure_display.sh; start if SPI3 is available
+if systemctl is-enabled --quiet networktap-display 2>/dev/null; then
     systemctl start networktap-display.service 2>/dev/null || true
 fi
 

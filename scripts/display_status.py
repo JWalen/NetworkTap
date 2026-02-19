@@ -303,18 +303,24 @@ def find_font(size):
 
 
 def init_display():
-    """Initialize the ST7789 SPI display. Returns the display object."""
+    """Initialize the ST7789 SPI display. Returns the display object.
+
+    The FR202 uses SPI3 with cs0_pin=24 (dtoverlay=spi3-1cs,cs0_pin=24).
+    SPI3 maps to /dev/spidev3.0 → port=3, cs=0.
+    Backlight is controlled via I2C (fr202-i2c), not a GPIO pin.
+    """
     import st7789
 
+    # FR202: SPI3, CS0, DC on GPIO25, no GPIO backlight (I2C-controlled)
     disp = st7789.ST7789(
         height=HEIGHT,
         width=WIDTH,
         rotation=0,
-        port=0,
+        port=3,
         cs=0,
-        dc=9,
-        backlight=13,
-        spi_speed_hz=80_000_000,
+        dc=25,
+        backlight=None,
+        spi_speed_hz=60_000_000,
     )
     disp.begin()
     return disp
