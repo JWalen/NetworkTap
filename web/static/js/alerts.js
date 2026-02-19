@@ -4,6 +4,7 @@ const Alerts = (() => {
     let autoScroll = true;
     let currentSource = 'all';
     let alertCount = 0;
+    let filterTimeout = null;
 
     async function render(container) {
         container.innerHTML = `
@@ -104,7 +105,9 @@ const Alerts = (() => {
         });
 
         document.getElementById('alert-filter').addEventListener('input', () => {
-            filterTable();
+            // Debounce filter input
+            if (filterTimeout) clearTimeout(filterTimeout);
+            filterTimeout = setTimeout(() => filterTable(), 300);
         });
 
         // Listen for live alerts via WebSocket
@@ -239,6 +242,11 @@ const Alerts = (() => {
 
     function cleanup() {
         WS.onAlert = null;
+        // Clear filter timeout to prevent memory leaks
+        if (filterTimeout) {
+            clearTimeout(filterTimeout);
+            filterTimeout = null;
+        }
     }
 
     return { render, cleanup };

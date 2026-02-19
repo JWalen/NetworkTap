@@ -1,10 +1,12 @@
 """Traffic statistics collector from Zeek and system data."""
 
+import heapq
 import json
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -175,17 +177,16 @@ def get_traffic_stats(hours: int = 24) -> TrafficStats:
     stats.unique_src_ips = len(src_ips)
     stats.unique_dest_ips = len(dest_ips)
     
-    # Top talkers
-    sorted_ips = sorted(ip_bytes.items(), key=lambda x: x[1], reverse=True)
+    # Top talkers - use heapq.nlargest for efficiency
     stats.top_talkers = [
-        {"ip": ip, "bytes": b} for ip, b in sorted_ips[:10]
+        {"ip": ip, "bytes": b} 
+        for ip, b in heapq.nlargest(10, ip_bytes.items(), key=lambda x: x[1])
     ]
     
-    # Top ports
-    sorted_ports = sorted(port_counts.items(), key=lambda x: x[1], reverse=True)
+    # Top ports - use heapq.nlargest for efficiency
     stats.top_ports = [
         {"port": port, "count": c, "service": get_service_name(port)}
-        for port, c in sorted_ports[:10]
+        for port, c in heapq.nlargest(10, port_counts.items(), key=lambda x: x[1])
     ]
     
     # Protocols
@@ -200,6 +201,7 @@ def get_traffic_stats(hours: int = 24) -> TrafficStats:
     return stats
 
 
+@lru_cache(maxsize=128)
 def get_service_name(port: int) -> str:
     """Get common service name for a port."""
     services = {
