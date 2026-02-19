@@ -239,6 +239,25 @@ verify_installation() {
     log "Verification passed"
 }
 
+run_new_setup_scripts() {
+    log "Running setup scripts for new features..."
+
+    # FR202 front panel display — run setup if SPI exists and service not yet enabled
+    if [[ -e /dev/spidev0.0 ]] && ! systemctl is-enabled --quiet networktap-display 2>/dev/null; then
+        if [[ -f "$INSTALL_DIR/setup/configure_display.sh" ]]; then
+            log "  Configuring FR202 front panel display..."
+            bash "$INSTALL_DIR/setup/configure_display.sh" || log "  Warning: Display setup had issues"
+        fi
+    fi
+}
+
+restart_console() {
+    # Restart console/splash services so they pick up updated scripts
+    log "Restarting console services..."
+    systemctl restart networktap-console.service 2>/dev/null || true
+    systemctl restart networktap-splash.service 2>/dev/null || true
+}
+
 main() {
     [[ $# -ge 1 ]] || usage
     
@@ -273,8 +292,10 @@ main() {
     update_dependencies
     update_database
     reload_systemd
+    run_new_setup_scripts
     verify_installation
     start_services
+    restart_console
     
     log "=================================="
     log "Update completed successfully!"
