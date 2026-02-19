@@ -285,7 +285,12 @@ class UpdateManager:
 
             # Schedule web service restart so the new code is loaded
             # Small delay so the status response can be sent first
-            asyncio.get_event_loop().call_later(3, self._restart_web_service)
+            try:
+                loop = asyncio.get_running_loop()
+                loop.call_later(3, self._restart_web_service)
+            except RuntimeError:
+                # No running loop — restart immediately
+                self._restart_web_service()
 
             return True
             
