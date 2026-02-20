@@ -781,7 +781,7 @@ def render_logo_screen(draw, font, font_sm, color=ACCENT, subtitle="", show_vers
 
 
 def render_screensaver(draw, font, font_sm, tick):
-    """Render screensaver with slowly pulsing logo color."""
+    """Render screensaver with slowly pulsing logo color and large clock."""
     import math
     # Pulse the accent color brightness using a sine wave
     t = math.sin(tick * 0.05) * 0.5 + 0.5  # 0.0 to 1.0
@@ -791,8 +791,12 @@ def render_screensaver(draw, font, font_sm, tick):
     b = int(DIM[2] + (ACCENT[2] - DIM[2]) * t)
     color = (max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, b)))
 
+    render_logo_screen(draw, font, font_sm, color=color, subtitle="", show_version=False)
+
+    # Large clock below the logo
     now_str = time.strftime("%H:%M")
-    render_logo_screen(draw, font, font_sm, color=color, subtitle=now_str, show_version=False)
+    clock_font = find_font(32)
+    draw.text((WIDTH // 2, HEIGHT - 38), now_str, fill=color, font=clock_font, anchor="ma")
 
 
 # ─── Display & Touch Hardware ───────────────────────────────────────
