@@ -65,6 +65,7 @@ EDITABLE_SETTINGS: dict[str, dict] = {
     "display_backlight_timeout":  {"key": "DISPLAY_BACKLIGHT_TIMEOUT",  "type": "int"},
     "display_default_page":       {"key": "DISPLAY_DEFAULT_PAGE",       "type": "str"},
     "display_screensaver":        {"key": "DISPLAY_SCREENSAVER",        "type": "bool"},
+    "display_screensaver_color":  {"key": "DISPLAY_SCREENSAVER_COLOR",  "type": "str"},
     # AI
     "anomaly_detection_enabled": {"key": "ANOMALY_DETECTION_ENABLED", "type": "bool"},
     "anomaly_sensitivity":      {"key": "ANOMALY_SENSITIVITY",      "type": "str"},

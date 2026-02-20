@@ -620,6 +620,26 @@ const Settings = (() => {
                     ${cfgSelect('display_default_page', 'Default Page', c.display_default_page, ['dashboard', 'network', 'services', 'alerts', 'system'])}
                     ${cfgToggle('display_screensaver', 'Screensaver', c.display_screensaver)}
                 </div>
+                <div class="settings-form-grid" style="margin-top:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Screensaver Color</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="color" id="display_screensaver_color" data-cfg="display_screensaver_color" value="${escapeHtml(c.display_screensaver_color || '#00d4aa')}" style="width:48px;height:36px;padding:2px;border:1px solid var(--border);border-radius:6px;background:var(--bg-secondary);cursor:pointer;">
+                            <span id="color-hex-label" style="color:var(--text-secondary);font-family:var(--font-mono);font-size:0.85rem;">${escapeHtml(c.display_screensaver_color || '#00d4aa')}</span>
+                        </div>
+                        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;" id="color-presets">
+                            <button type="button" class="btn btn-sm btn-secondary color-preset" data-color="#00d4aa" style="padding:4px 8px;" title="Teal (default)"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#00d4aa;vertical-align:middle;"></span></button>
+                            <button type="button" class="btn btn-sm btn-secondary color-preset" data-color="#3b82f6" style="padding:4px 8px;" title="Blue"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#3b82f6;vertical-align:middle;"></span></button>
+                            <button type="button" class="btn btn-sm btn-secondary color-preset" data-color="#a855f7" style="padding:4px 8px;" title="Purple"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#a855f7;vertical-align:middle;"></span></button>
+                            <button type="button" class="btn btn-sm btn-secondary color-preset" data-color="#f97316" style="padding:4px 8px;" title="Orange"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#f97316;vertical-align:middle;"></span></button>
+                            <button type="button" class="btn btn-sm btn-secondary color-preset" data-color="#ef4444" style="padding:4px 8px;" title="Red"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ef4444;vertical-align:middle;"></span></button>
+                            <button type="button" class="btn btn-sm btn-secondary color-preset" data-color="#22c55e" style="padding:4px 8px;" title="Green"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#22c55e;vertical-align:middle;"></span></button>
+                            <button type="button" class="btn btn-sm btn-secondary color-preset" data-color="#eab308" style="padding:4px 8px;" title="Yellow"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#eab308;vertical-align:middle;"></span></button>
+                            <button type="button" class="btn btn-sm btn-secondary color-preset" data-color="#ec4899" style="padding:4px 8px;" title="Pink"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ec4899;vertical-align:middle;"></span></button>
+                            <button type="button" class="btn btn-sm btn-secondary color-preset" data-color="#ffffff" style="padding:4px 8px;" title="White"><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ffffff;border:1px solid var(--border);vertical-align:middle;"></span></button>
+                        </div>
+                    </div>
+                </div>
                 <p class="form-help" style="margin-top:8px;">When screensaver is enabled, the display shows a pulsing logo with clock after the backlight timeout. When disabled, the backlight simply turns off.</p>
                 <div style="margin-top:12px;">
                     <button class="btn btn-secondary btn-sm" id="btn-restart-display">Restart Display Service</button>
@@ -726,6 +746,29 @@ const Settings = (() => {
                         restartBtn.disabled = false;
                         restartBtn.textContent = 'Restart Display Service';
                     }
+                });
+            }
+
+            // Color picker sync
+            const colorInput = document.getElementById('display_screensaver_color');
+            const colorLabel = document.getElementById('color-hex-label');
+            if (colorInput && !colorInput.dataset.bound) {
+                colorInput.dataset.bound = '1';
+                colorInput.addEventListener('input', () => {
+                    if (colorLabel) colorLabel.textContent = colorInput.value;
+                });
+            }
+
+            // Color preset buttons
+            const presets = document.getElementById('color-presets');
+            if (presets && !presets.dataset.bound) {
+                presets.dataset.bound = '1';
+                presets.querySelectorAll('.color-preset').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const color = btn.dataset.color;
+                        if (colorInput) colorInput.value = color;
+                        if (colorLabel) colorLabel.textContent = color;
+                    });
                 });
             }
         }

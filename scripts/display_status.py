@@ -712,62 +712,33 @@ PAGE_RENDERERS = [render_dashboard, render_network, render_services, render_aler
 
 # ─── Boot Splash & Screensaver ──────────────────────────────────────
 
-# Block-art logo — "NETWORK" on line 1, "TAP" on line 2, centered on 320px
-LOGO_LINES = [
-    "█▄ █ █▀▀ ▀█▀ █   █ █▀█ █▀▄ █▄▀",
-    "█ ▀█ ██▄  █  ▀▄▀▄▀ █▄█ █▀▄ █ █",
-    "",
-    "▀█▀ ▄▀█ █▀▄",
-    " █  █▀█ █▀▀",
-]
+
+def parse_color_hex(hex_str, default=ACCENT):
+    """Parse a hex color string like '#00d4aa' into an RGB tuple."""
+    try:
+        h = hex_str.strip().lstrip("#")
+        if len(h) == 6:
+            return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    except (ValueError, AttributeError):
+        pass
+    return default
 
 
 def render_logo_screen(draw, font, font_sm, color=ACCENT, subtitle="", show_version=True):
     """Render the NetworkTap logo screen (used for boot splash and screensaver)."""
     draw.rectangle([0, 0, WIDTH, HEIGHT], fill=BG)
 
-    # Try to render block art with a monospace font
-    try:
-        from PIL import ImageFont
-        block_font = None
-        for path in [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        ]:
-            if os.path.exists(path):
-                block_font = ImageFont.truetype(path, 14)
-                break
+    # "NETWORK" in large bold, "TAP" below it, both centered
+    title_font = find_font(36)
+    tap_font = find_font(28)
 
-        if block_font:
-            # Calculate total height: 5 lines, skip blank line 2
-            line_h = 17
-            total_h = len(LOGO_LINES) * line_h
-            logo_y = (HEIGHT - total_h) // 2 - 15  # nudge up for subtitle/version
-
-            for i, line in enumerate(LOGO_LINES):
-                if not line:
-                    continue
-                bbox = block_font.getbbox(line)
-                text_w = bbox[2] - bbox[0] if bbox else 200
-                x = (WIDTH - text_w) // 2
-                draw.text((x, logo_y + i * line_h), line, fill=color, font=block_font)
-
-            line_y = logo_y + total_h + 4
-        else:
-            # Fallback: plain text on two lines
-            logo_y = HEIGHT // 2 - 30
-            draw.text((WIDTH // 2, logo_y), "NETWORK", fill=color, font=font, anchor="ma")
-            draw.text((WIDTH // 2, logo_y + 18), "TAP", fill=color, font=font, anchor="ma")
-            line_y = logo_y + 44
-    except Exception:
-        logo_y = HEIGHT // 2 - 30
-        draw.text((WIDTH // 2, logo_y), "NETWORK", fill=color, font=font, anchor="ma")
-        draw.text((WIDTH // 2, logo_y + 18), "TAP", fill=color, font=font, anchor="ma")
-        line_y = logo_y + 44
+    # Position logo in upper portion to leave room for clock
+    draw.text((WIDTH // 2, 30), "NETWORK", fill=color, font=title_font, anchor="ma")
+    draw.text((WIDTH // 2, 68), "TAP", fill=color, font=tap_font, anchor="ma")
 
     # Accent line under logo
-    line_w = 100
+    line_y = 95
+    line_w = 120
     draw.line([(WIDTH // 2 - line_w // 2, line_y), (WIDTH // 2 + line_w // 2, line_y)], fill=color, width=2)
 
     # Subtitle
@@ -780,23 +751,23 @@ def render_logo_screen(draw, font, font_sm, color=ACCENT, subtitle="", show_vers
         draw.text((WIDTH // 2, HEIGHT - 18), f"v{version}", fill=DIVIDER, font=font_sm, anchor="ma")
 
 
-def render_screensaver(draw, font, font_sm, tick):
+def render_screensaver(draw, font, font_sm, tick, base_color=ACCENT):
     """Render screensaver with slowly pulsing logo color and large clock."""
     import math
-    # Pulse the accent color brightness using a sine wave
+    # Pulse the color brightness using a sine wave
     t = math.sin(tick * 0.05) * 0.5 + 0.5  # 0.0 to 1.0
-    # Interpolate between dim and accent
-    r = int(DIM[0] + (ACCENT[0] - DIM[0]) * t)
-    g = int(DIM[1] + (ACCENT[1] - DIM[1]) * t)
-    b = int(DIM[2] + (ACCENT[2] - DIM[2]) * t)
+    # Interpolate between dim and the base color
+    r = int(DIM[0] + (base_color[0] - DIM[0]) * t)
+    g = int(DIM[1] + (base_color[1] - DIM[1]) * t)
+    b = int(DIM[2] + (base_color[2] - DIM[2]) * t)
     color = (max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, b)))
 
     render_logo_screen(draw, font, font_sm, color=color, subtitle="", show_version=False)
 
-    # Large clock below the logo
+    # Large clock filling the space below the logo
     now_str = time.strftime("%H:%M")
     clock_font = find_font(64)
-    draw.text((WIDTH // 2, HEIGHT - 55), now_str, fill=color, font=clock_font, anchor="ma")
+    draw.text((WIDTH // 2, 145), now_str, fill=color, font=clock_font, anchor="ma")
 
 
 # ─── Display & Touch Hardware ───────────────────────────────────────
@@ -991,6 +962,7 @@ def main():
     backlight_timeout = int(conf.get("DISPLAY_BACKLIGHT_TIMEOUT", BACKLIGHT_TIMEOUT))
     default_page = conf.get("DISPLAY_DEFAULT_PAGE", DEFAULT_PAGE)
     screensaver_enabled = conf.get("DISPLAY_SCREENSAVER", "yes").lower() == "yes"
+    screensaver_color = parse_color_hex(conf.get("DISPLAY_SCREENSAVER_COLOR", "#00d4aa"))
 
     # Clamp to sane ranges
     refresh_interval = max(1, min(60, refresh_interval))
@@ -1032,6 +1004,7 @@ def main():
             refresh_interval = max(1, min(60, int(conf.get("DISPLAY_REFRESH", REFRESH_INTERVAL))))
             backlight_timeout = max(0, min(3600, int(conf.get("DISPLAY_BACKLIGHT_TIMEOUT", BACKLIGHT_TIMEOUT))))
             screensaver_enabled = conf.get("DISPLAY_SCREENSAVER", "yes").lower() == "yes"
+            screensaver_color = parse_color_hex(conf.get("DISPLAY_SCREENSAVER_COLOR", "#00d4aa"))
             config_reload_time = now
 
         # Check for touch input
@@ -1085,7 +1058,7 @@ def main():
                 draw = ImageDraw.Draw(img)
 
                 if screensaver_active:
-                    render_screensaver(draw, font, font_sm, screensaver_tick)
+                    render_screensaver(draw, font, font_sm, screensaver_tick, screensaver_color)
                     screensaver_tick += 1
                 else:
                     conf = load_config()

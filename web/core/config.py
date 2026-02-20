@@ -106,6 +106,7 @@ class NetworkTapConfig:
     display_backlight_timeout: int = 120
     display_default_page: str = "dashboard"
     display_screensaver: bool = True
+    display_screensaver_color: str = "#00d4aa"
 
     # AI Features
     anomaly_detection_enabled: bool = True
@@ -168,6 +169,7 @@ class NetworkTapConfig:
             display_backlight_timeout=int(raw.get("DISPLAY_BACKLIGHT_TIMEOUT", cls.display_backlight_timeout)),
             display_default_page=raw.get("DISPLAY_DEFAULT_PAGE", cls.display_default_page),
             display_screensaver=raw.get("DISPLAY_SCREENSAVER", "yes").lower() == "yes",
+            display_screensaver_color=raw.get("DISPLAY_SCREENSAVER_COLOR", cls.display_screensaver_color),
             anomaly_detection_enabled=raw.get("ANOMALY_DETECTION_ENABLED", "yes").lower() == "yes",
             anomaly_sensitivity=raw.get("ANOMALY_SENSITIVITY", cls.anomaly_sensitivity),
             anomaly_interval=int(raw.get("ANOMALY_INTERVAL", cls.anomaly_interval)),
