@@ -795,8 +795,8 @@ def render_screensaver(draw, font, font_sm, tick):
 
     # Large clock below the logo
     now_str = time.strftime("%H:%M")
-    clock_font = find_font(32)
-    draw.text((WIDTH // 2, HEIGHT - 38), now_str, fill=color, font=clock_font, anchor="ma")
+    clock_font = find_font(64)
+    draw.text((WIDTH // 2, HEIGHT - 55), now_str, fill=color, font=clock_font, anchor="ma")
 
 
 # ─── Display & Touch Hardware ───────────────────────────────────────
