@@ -1,6 +1,6 @@
 # NetworkTap
 
-**v1.0.40**
+**v1.0.41**
 
 Network tap and monitoring appliance for the OnLogic FR201/FR202 (2-NIC Linux platform). Provides passive packet capture, inline bridging, IDS/IPS via Suricata and Zeek, AI-powered anomaly detection, and a modern web dashboard for administration.
 
