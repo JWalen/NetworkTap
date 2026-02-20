@@ -5,6 +5,12 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.42] - 2026-02-20
+
+### Fixed
+- **Suricata not collecting data after NIC swap**: NIC change handler now re-runs `configure_suricata.sh` and restarts both Suricata and Zeek services so they capture on the correct interface
+- **switch_mode.sh**: Changed `start` to `restart` for IDS services so already-running services actually reload with the new interface
+
 ## [1.0.41] - 2026-02-20
 
 ### Fixed
