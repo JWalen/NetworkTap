@@ -888,14 +888,15 @@ const Settings = (() => {
         }
         populateIfaceDropdowns();
 
+        // Track original NIC values to detect changes
+        const origNic1 = c.nic1 || '';
+        const origNic2 = c.nic2 || '';
+
         // Save handler
         document.getElementById('config-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('cfg-save-btn');
             const statusEl = document.getElementById('cfg-save-status');
-            btn.disabled = true;
-            btn.textContent = 'Saving...';
-            statusEl.textContent = '';
 
             const body = {};
             document.querySelectorAll('[data-cfg]').forEach(el => {
@@ -907,11 +908,26 @@ const Settings = (() => {
                 body[key] = val;
             });
 
+            // Warn if NIC assignments changed — this reconfigures networking
+            const nicChanged = body.nic1 !== origNic1 || body.nic2 !== origNic2;
+            if (nicChanged) {
+                if (!confirm('Changing NIC assignments will reconfigure networking (IP addresses, promiscuous mode). This may briefly disconnect you. Continue?')) {
+                    return;
+                }
+            }
+
+            btn.disabled = true;
+            btn.textContent = nicChanged ? 'Reconfiguring...' : 'Saving...';
+            statusEl.textContent = '';
+
             try {
                 const result = await api('/api/config/', {
                     method: 'PUT',
                     body: body,
                 });
+                if (result.warning) {
+                    toast(result.warning, 'warning');
+                }
                 if (result.success) {
                     toast(result.message, 'success');
                     statusEl.textContent = 'Saved';

@@ -5,6 +5,12 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.32] - 2026-02-20
+
+### Fixed
+- **NIC swap now reconfigures networking**: Changing NIC1/NIC2 in Settings automatically re-runs `configure_network.sh` to update systemd-networkd files (promiscuous mode, IP assignment, offloading)
+- Confirmation prompt warns that NIC changes will reconfigure networking
+
 ## [1.0.31] - 2026-02-20
 
 ### Changed

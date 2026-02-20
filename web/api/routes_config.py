@@ -231,7 +231,30 @@ async def update_configuration(
     except Exception as e:
         return {"success": False, "message": f"Failed to write config: {e}"}
 
-    result = {"success": True, "message": f"Updated {len(updates)} setting(s)", "updated": list(updates.keys())}
+    # If NIC assignments changed, re-run network configuration to update
+    # systemd-networkd files (promiscuous mode, IP assignment, etc.)
+    nic_changed = "NIC1" in updates or "NIC2" in updates
+    if nic_changed:
+        try:
+            import subprocess
+            subprocess.run(
+                ["bash", "/opt/networktap/setup/configure_network.sh"],
+                timeout=30,
+                check=True,
+            )
+        except Exception as e:
+            return {
+                "success": True,
+                "message": f"Config saved but network reconfiguration failed: {e}",
+                "updated": list(updates.keys()),
+                "warning": "NIC assignments saved but network was not reconfigured. Run configure_network.sh manually or reboot.",
+            }
+
+    result = {"success": True, "updated": list(updates.keys())}
+    if nic_changed:
+        result["message"] = f"Updated {len(updates)} setting(s). Network interfaces reconfigured."
+    else:
+        result["message"] = f"Updated {len(updates)} setting(s)"
     if errors:
         result["errors"] = errors
     return result
