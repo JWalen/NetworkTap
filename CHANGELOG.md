@@ -5,6 +5,11 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.34] - 2026-02-20
+
+### Fixed
+- **Firewall reconfigured on NIC swap**: Changing NIC assignments now also re-runs `configure_firewall.sh` to update UFW rules for the new management interface
+
 ## [1.0.33] - 2026-02-20
 
 ### Changed
