@@ -710,6 +710,83 @@ def render_system(draw, font, font_sm, conf):
 PAGE_RENDERERS = [render_dashboard, render_network, render_services, render_alerts, render_system]
 
 
+# ─── Boot Splash & Screensaver ──────────────────────────────────────
+
+# Compact block-art "NETWORKTAP" — fits 320px at font size 7
+# Each letter is 4px wide + 1px gap, "NETWORKTAP" = 10 chars
+LOGO_LINES = [
+    "█▄ █ █▀▀ ▀█▀ █   █ █▀█ █▀▄ █▄▀ ▀█▀ ▄▀█ █▀▄",
+    "█ ▀█ ██▄  █  ▀▄▀▄▀ █▄█ █▀▄ █ █  █  █▀█ █▀▀",
+]
+
+LOGO_LINES_SM = [
+    "N E T W O R K T A P",
+]
+
+
+def render_logo_screen(draw, font, font_sm, color=ACCENT, subtitle="", show_version=True):
+    """Render the NetworkTap logo screen (used for boot splash and screensaver)."""
+    draw.rectangle([0, 0, WIDTH, HEIGHT], fill=BG)
+
+    # Center the block art vertically
+    logo_y = 70
+
+    # Try to render block art with a small font
+    try:
+        from PIL import ImageFont
+        # Use a slightly larger font for the block art
+        block_font = None
+        for path in [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        ]:
+            if os.path.exists(path):
+                block_font = ImageFont.truetype(path, 16)
+                break
+
+        if block_font:
+            for i, line in enumerate(LOGO_LINES):
+                bbox = block_font.getbbox(line)
+                text_w = bbox[2] - bbox[0] if bbox else 200
+                x = (WIDTH - text_w) // 2
+                draw.text((x, logo_y + i * 20), line, fill=color, font=block_font)
+        else:
+            # Fallback: simple text
+            draw.text((WIDTH // 2, logo_y), "NETWORKTAP", fill=color, font=font, anchor="ma")
+    except Exception:
+        draw.text((WIDTH // 2, logo_y), "NETWORKTAP", fill=color, font=font, anchor="ma")
+
+    # Accent line under logo
+    line_y = logo_y + 50
+    line_w = 120
+    draw.line([(WIDTH // 2 - line_w // 2, line_y), (WIDTH // 2 + line_w // 2, line_y)], fill=color, width=2)
+
+    # Subtitle
+    if subtitle:
+        draw.text((WIDTH // 2, line_y + 12), subtitle, fill=DIM, font=font_sm, anchor="ma")
+
+    # Version
+    if show_version:
+        version = get_version()
+        draw.text((WIDTH // 2, HEIGHT - 20), f"v{version}", fill=DIVIDER, font=font_sm, anchor="ma")
+
+
+def render_screensaver(draw, font, font_sm, tick):
+    """Render screensaver with slowly pulsing logo color."""
+    import math
+    # Pulse the accent color brightness using a sine wave
+    t = math.sin(tick * 0.05) * 0.5 + 0.5  # 0.0 to 1.0
+    # Interpolate between dim and accent
+    r = int(DIM[0] + (ACCENT[0] - DIM[0]) * t)
+    g = int(DIM[1] + (ACCENT[1] - DIM[1]) * t)
+    b = int(DIM[2] + (ACCENT[2] - DIM[2]) * t)
+    color = (max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, b)))
+
+    now_str = time.strftime("%H:%M")
+    render_logo_screen(draw, font, font_sm, color=color, subtitle=now_str, show_version=False)
+
+
 # ─── Display & Touch Hardware ───────────────────────────────────────
 
 
@@ -914,8 +991,23 @@ def main():
     debounce_time = 0.0
     config_reload_time = time.time()
 
+    screensaver_active = False
+    screensaver_tick = 0
+
     log.info("Starting display loop (%d pages, refresh=%ds, backlight_timeout=%ds, default=%s)",
              len(PAGES), refresh_interval, backlight_timeout, PAGES[page_idx])
+
+    # ── Boot splash ──
+    try:
+        img = Image.new("RGB", (WIDTH, HEIGHT), BG)
+        draw = ImageDraw.Draw(img)
+        render_logo_screen(draw, font, font_sm, subtitle="Starting up...")
+        if display is not None:
+            display.display(img)
+        log.info("Boot splash displayed")
+        time.sleep(3)
+    except Exception:
+        log.exception("Error rendering boot splash")
 
     while running:
         now = time.time()
@@ -935,7 +1027,13 @@ def main():
             debounce_time = now
             idle_time = 0.0
 
-            if not backlight_on:
+            if screensaver_active:
+                # Wake from screensaver — return to current page without changing
+                screensaver_active = False
+                set_backlight(True)
+                backlight_on = True
+                log.info("Woke from screensaver")
+            elif not backlight_on:
                 # First tap wakes the screen without changing page
                 set_backlight(True)
                 backlight_on = True
@@ -947,28 +1045,39 @@ def main():
 
             needs_render = True
 
-        # Auto-dim backlight after timeout (0 = never dim)
-        if backlight_on and backlight_timeout > 0 and idle_time >= backlight_timeout:
-            set_backlight(False)
-            backlight_on = False
-            log.info("Backlight dimmed (idle timeout)")
+        # Enter screensaver after idle timeout (0 = never)
+        if not screensaver_active and backlight_on and backlight_timeout > 0 and idle_time >= backlight_timeout:
+            screensaver_active = True
+            screensaver_tick = 0
+            log.info("Screensaver activated (idle timeout)")
 
         # Periodic refresh
         if now - last_render >= refresh_interval:
             needs_render = True
 
+        # Screensaver renders every tick for smooth animation
+        if screensaver_active and now - last_render >= 0.5:
+            needs_render = True
+
         if needs_render:
             try:
-                conf = load_config()
                 img = Image.new("RGB", (WIDTH, HEIGHT), BG)
                 draw = ImageDraw.Draw(img)
 
-                PAGE_RENDERERS[page_idx](draw, font, font_sm, conf)
+                if screensaver_active:
+                    render_screensaver(draw, font, font_sm, screensaver_tick)
+                    screensaver_tick += 1
+                else:
+                    conf = load_config()
+                    PAGE_RENDERERS[page_idx](draw, font, font_sm, conf)
 
                 if display is not None:
                     display.display(img)
                 else:
-                    log.info("Frame rendered: page=%s (no hardware display)", PAGES[page_idx])
+                    if screensaver_active:
+                        log.info("Frame rendered: screensaver (no hardware display)")
+                    else:
+                        log.info("Frame rendered: page=%s (no hardware display)", PAGES[page_idx])
 
                 last_render = time.time()
             except Exception:

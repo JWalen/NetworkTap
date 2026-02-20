@@ -5,6 +5,32 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.22] - 2026-02-20
+
+### Added
+- **Boot splash screen**: ASCII art "NETWORKTAP" logo displayed for 3 seconds on startup
+- **Screensaver mode**: Pulsing logo with clock replaces simple backlight dimming on idle timeout
+- Touch to wake from screensaver returns to the current page without changing
+
+## [1.0.21] - 2026-02-20
+
+### Fixed
+- Fixed "failed to save" error when saving config from Settings page (double JSON.stringify bug)
+
+## [1.0.20] - 2026-02-20
+
+### Fixed
+- **Power LED fix**: Auto-corrects `pwr_led_trigger=backlight` to `default-on` in config.txt
+- Added power LED config to `configure_display.sh` for FR202
+
+## [1.0.19] - 2026-02-20
+
+### Added
+- **Display settings in web UI**: Control FR202 display from Settings > Configuration > Display
+  - Enable/disable display, refresh interval, backlight timeout, default page
+- Display daemon reads settings from config file and reloads every 60s
+- Service restart API endpoint (`POST /api/system/service/{name}/restart`)
+
 ## [1.0.18] - 2026-02-20
 
 ### Fixed
