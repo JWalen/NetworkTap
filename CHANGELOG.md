@@ -5,6 +5,16 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.29] - 2026-02-20
+
+### Performance
+- **Non-blocking CPU monitoring**: `psutil.cpu_percent` no longer blocks event loop for 500ms
+- **Dashboard refresh 5s -> 10s**: Halves polling load on the CM4
+- **Alert fetch limit 200 -> 20**: Dashboard only shows 8, was wasting bandwidth
+- **Alerts API caching**: 5-second TTL cache avoids re-parsing log files every poll
+- **Live alert filter debounced**: No longer runs on every single incoming WebSocket alert
+- **Sparkline bar updates batched**: Uses `requestAnimationFrame` to avoid per-bar reflow
+
 ## [1.0.28] - 2026-02-20
 
 ### Performance
