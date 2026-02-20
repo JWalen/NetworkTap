@@ -543,6 +543,7 @@ const Settings = (() => {
     // ── Config Tab ───────────────────────────────────────────────
 
     const CONFIG_SECTIONS = [
+        { id: 'interfaces', label: 'Interfaces', icon: 'M1 4h22v16H1zM1 10h22' },
         { id: 'capture',  label: 'Capture',    icon: 'M12 2a10 10 0 110 20 10 10 0 010-20zM12 8a4 4 0 110 8 4 4 0 010-8z' },
         { id: 'retention', label: 'Retention',  icon: 'M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2' },
         { id: 'suricata', label: 'Suricata',    icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
@@ -585,6 +586,13 @@ const Settings = (() => {
 
     function renderConfigSectionContent(id, c) {
         switch (id) {
+            case 'interfaces': return `
+                <p class="settings-section-desc">Network interface assignments. NIC1 is the capture/monitor interface, NIC2 is the management/uplink interface.</p>
+                <div class="settings-form-grid">
+                    ${cfgInput('nic1', 'NIC1 (Capture)', c.nic1, 'text', 'Interface used for packet capture (e.g., eth0, eth1)')}
+                    ${cfgInput('nic2', 'NIC2 (Management)', c.nic2, 'text', 'Interface used for management/web UI (e.g., eth0, eth1)')}
+                </div>
+                <p class="form-help" style="margin-top:8px;">Changing NIC assignments requires a service restart. The capture interface monitors traffic; the management interface provides web UI access.</p>`;
             case 'capture': return `
                 <p class="settings-section-desc">Packet capture settings for tcpdump.</p>
                 <div class="settings-form-grid">

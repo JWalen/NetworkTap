@@ -21,6 +21,9 @@ class ModeSwitch(BaseModel):
 # Map of config field name -> conf file KEY.
 # Only settings listed here are editable via the API.
 EDITABLE_SETTINGS: dict[str, dict] = {
+    # Network Interfaces
+    "nic1":                     {"key": "NIC1",                     "type": "str"},
+    "nic2":                     {"key": "NIC2",                     "type": "str"},
     # Capture
     "capture_dir":              {"key": "CAPTURE_DIR",              "type": "str"},
     "capture_iface":            {"key": "CAPTURE_IFACE",            "type": "str"},
