@@ -589,15 +589,33 @@ const Settings = (() => {
             case 'interfaces': return `
                 <p class="settings-section-desc">Network interface assignments. NIC1 is the capture/monitor interface, NIC2 is the management/uplink interface.</p>
                 <div class="settings-form-grid">
-                    ${cfgInput('nic1', 'NIC1 (Capture)', c.nic1, 'text', 'Interface used for packet capture (e.g., eth0, eth1)')}
-                    ${cfgInput('nic2', 'NIC2 (Management)', c.nic2, 'text', 'Interface used for management/web UI (e.g., eth0, eth1)')}
+                    <div class="form-group">
+                        <label class="form-label">NIC1 (Capture)</label>
+                        <select id="nic1" data-cfg="nic1">
+                            <option value="${escapeHtml(c.nic1 || '')}">${escapeHtml(c.nic1 || '?')}</option>
+                        </select>
+                        <p class="form-help">Interface used for packet capture</p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">NIC2 (Management)</label>
+                        <select id="nic2" data-cfg="nic2">
+                            <option value="${escapeHtml(c.nic2 || '')}">${escapeHtml(c.nic2 || '?')}</option>
+                        </select>
+                        <p class="form-help">Interface used for management/web UI</p>
+                    </div>
                 </div>
                 <p class="form-help" style="margin-top:8px;">Changing NIC assignments requires a service restart. The capture interface monitors traffic; the management interface provides web UI access.</p>`;
             case 'capture': return `
                 <p class="settings-section-desc">Packet capture settings for tcpdump.</p>
                 <div class="settings-form-grid">
                     ${cfgInput('capture_dir', 'Capture Directory', c.capture_dir)}
-                    ${cfgInput('capture_iface', 'Capture Interface', c.capture_iface, 'text', '"auto" or interface name')}
+                    <div class="form-group">
+                        <label class="form-label">Capture Interface</label>
+                        <select id="capture_iface" data-cfg="capture_iface" class="iface-select">
+                            <option value="${escapeHtml(c.capture_iface || 'auto')}">${escapeHtml(c.capture_iface || 'auto')}</option>
+                        </select>
+                        <p class="form-help">"auto" uses the NIC1 assignment</p>
+                    </div>
                     ${cfgInput('capture_rotate_seconds', 'Rotation Interval (sec)', c.capture_rotate_seconds, 'number')}
                     ${cfgInput('capture_file_limit', 'Max Rotated Files', c.capture_file_limit, 'number', '0 = unlimited')}
                     ${cfgInput('capture_snaplen', 'Snap Length', c.capture_snaplen, 'number', '0 = full packet')}
@@ -614,13 +632,25 @@ const Settings = (() => {
                 <p class="settings-section-desc">Suricata intrusion detection system.</p>
                 <div class="settings-form-grid">
                     ${cfgToggle('suricata_enabled', 'Enabled', c.suricata_enabled)}
-                    ${cfgInput('suricata_iface', 'Interface', c.suricata_iface, 'text', '"auto" or interface name')}
+                    <div class="form-group">
+                        <label class="form-label">Interface</label>
+                        <select id="suricata_iface" data-cfg="suricata_iface" class="iface-select">
+                            <option value="${escapeHtml(c.suricata_iface || 'auto')}">${escapeHtml(c.suricata_iface || 'auto')}</option>
+                        </select>
+                        <p class="form-help">"auto" uses the NIC1 assignment</p>
+                    </div>
                 </div>`;
             case 'zeek': return `
                 <p class="settings-section-desc">Zeek network analysis framework.</p>
                 <div class="settings-form-grid">
                     ${cfgToggle('zeek_enabled', 'Enabled', c.zeek_enabled)}
-                    ${cfgInput('zeek_iface', 'Interface', c.zeek_iface, 'text', '"auto" or interface name')}
+                    <div class="form-group">
+                        <label class="form-label">Interface</label>
+                        <select id="zeek_iface" data-cfg="zeek_iface" class="iface-select">
+                            <option value="${escapeHtml(c.zeek_iface || 'auto')}">${escapeHtml(c.zeek_iface || 'auto')}</option>
+                        </select>
+                        <p class="form-help">"auto" uses the NIC1 assignment</p>
+                    </div>
                 </div>`;
             case 'web': return `
                 <p class="settings-section-desc">Web dashboard server settings.</p>
@@ -819,6 +849,44 @@ const Settings = (() => {
                 });
             }
         }
+
+        // Populate all interface dropdowns with available interfaces
+        async function populateIfaceDropdowns() {
+            try {
+                const data = await api('/api/system/interfaces');
+                const ifaces = (data.interfaces || [])
+                    .map(i => i.name)
+                    .filter(n => n !== 'lo' && !n.startsWith('br'));
+
+                // NIC1/NIC2 selects (no "auto" option)
+                for (const id of ['nic1', 'nic2']) {
+                    const sel = document.getElementById(id);
+                    if (!sel) continue;
+                    const current = sel.value;
+                    sel.innerHTML = ifaces.map(name =>
+                        `<option value="${escapeHtml(name)}" ${name === current ? 'selected' : ''}>${escapeHtml(name)}</option>`
+                    ).join('');
+                    if (current && !ifaces.includes(current)) {
+                        sel.insertAdjacentHTML('afterbegin',
+                            `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)}</option>`);
+                    }
+                }
+
+                // Interface selects with "auto" option (capture, suricata, zeek)
+                document.querySelectorAll('.iface-select').forEach(sel => {
+                    const current = sel.value;
+                    const opts = ['auto', ...ifaces];
+                    sel.innerHTML = opts.map(name =>
+                        `<option value="${escapeHtml(name)}" ${name === current ? 'selected' : ''}>${escapeHtml(name)}</option>`
+                    ).join('');
+                    if (current && current !== 'auto' && !ifaces.includes(current)) {
+                        sel.insertAdjacentHTML('beforeend',
+                            `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)}</option>`);
+                    }
+                });
+            } catch {}
+        }
+        populateIfaceDropdowns();
 
         // Save handler
         document.getElementById('config-form').addEventListener('submit', async (e) => {
