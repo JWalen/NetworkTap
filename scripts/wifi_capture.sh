@@ -65,50 +65,82 @@ check_monitor_support() {
 enable_monitor_mode() {
     local iface="$1"
     local channel="${WIFI_CAPTURE_CHANNEL:-11}"
-    
+
     log "Enabling monitor mode on $iface..."
-    
-    # Bring interface down
-    ip link set "$iface" down 2>/dev/null || true
-    
-    # Kill processes that might interfere
+
+    # Kill ALL processes that might hold the interface
+    # This must happen BEFORE bringing the interface down
+    systemctl stop "wpa_supplicant@${iface}.service" 2>/dev/null || true
+    systemctl stop wpa_supplicant 2>/dev/null || true
+    systemctl stop NetworkManager 2>/dev/null || true
+    killall -q wpa_supplicant dhclient dhcpcd 2>/dev/null || true
     if command -v airmon-ng &>/dev/null; then
         airmon-ng check kill >/dev/null 2>&1 || true
-    else
-        # Manual kill of interfering processes
-        systemctl stop wpa_supplicant 2>/dev/null || true
-        systemctl stop NetworkManager 2>/dev/null || true
-        killall wpa_supplicant dhclient 2>/dev/null || true
     fi
-    
-    # Set monitor mode
+
+    # Wait for processes to release the interface
+    sleep 2
+
+    # Bring interface down
+    ip link set "$iface" down 2>/dev/null || true
+    sleep 1
+
+    # Try iw first
+    local monitor_err=""
     if command -v iw &>/dev/null; then
-        iw dev "$iface" set type monitor 2>/dev/null || {
-            log "  Trying with airmon-ng..."
+        monitor_err=$(iw dev "$iface" set type monitor 2>&1) && {
+            log "  Monitor mode set via iw"
+            MONITOR_IFACE="$iface"
+        } || {
+            log "  iw failed: $monitor_err"
+            # Try airmon-ng as fallback
             if command -v airmon-ng &>/dev/null; then
-                airmon-ng start "$iface" >/dev/null 2>&1
+                log "  Trying airmon-ng..."
+                airmon_out=$(airmon-ng start "$iface" 2>&1) || true
+                log "  airmon-ng: $airmon_out"
                 # airmon-ng creates interfaces like wlan0mon
-                MONITOR_IFACE="${iface}mon"
-                if ! ip link show "$MONITOR_IFACE" &>/dev/null; then
+                if ip link show "${iface}mon" &>/dev/null; then
+                    MONITOR_IFACE="${iface}mon"
+                else
                     MONITOR_IFACE="$iface"
                 fi
             else
-                error "Failed to enable monitor mode"
+                # Last resort: try iwconfig
+                if command -v iwconfig &>/dev/null; then
+                    log "  Trying iwconfig..."
+                    iwconfig "$iface" mode monitor 2>/dev/null || {
+                        error "Failed to enable monitor mode. Error: $monitor_err"
+                    }
+                    MONITOR_IFACE="$iface"
+                else
+                    error "Failed to enable monitor mode. Error: $monitor_err. Install airmon-ng (aircrack-ng) for better support."
+                fi
             fi
         }
+    else
+        error "iw command not found. Install with: apt install iw"
     fi
-    
+
     # Bring interface up
-    ip link set "${MONITOR_IFACE:-$iface}" up
-    
+    ip link set "${MONITOR_IFACE:-$iface}" up || {
+        error "Failed to bring ${MONITOR_IFACE:-$iface} up after setting monitor mode"
+    }
+
     # Set channel
     if [[ -n "$channel" ]]; then
         log "  Setting channel $channel..."
         iw dev "${MONITOR_IFACE:-$iface}" set channel "$channel" 2>/dev/null || \
-            log "  Warning: Failed to set channel"
+            log "  Warning: Failed to set channel $channel"
     fi
-    
-    log "  Monitor mode enabled"
+
+    # Verify monitor mode is actually active
+    local iface_mode=$(iw dev "${MONITOR_IFACE:-$iface}" info 2>/dev/null | grep -oP 'type \K\w+')
+    if [[ "$iface_mode" == "monitor" ]]; then
+        log "  Monitor mode confirmed on ${MONITOR_IFACE:-$iface}"
+    else
+        log "  Warning: Interface reports type '$iface_mode' instead of 'monitor'"
+    fi
+
     echo "${MONITOR_IFACE:-$iface}"
 }
 

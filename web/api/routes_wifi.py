@@ -494,13 +494,16 @@ async def wifi_capture_status(user: Annotated[str, Depends(verify_credentials)])
 async def wifi_capture_start(user: Annotated[str, Depends(verify_credentials)]):
     """Start WiFi packet capture in monitor mode."""
     try:
-        rc, stdout, stderr = await _run_wifi_capture(["start"], timeout=30)
+        rc, stdout, stderr = await _run_wifi_capture(["start"], timeout=45)
         success = rc == 0 and "started" in stdout.lower()
-        
-        return {
-            "success": success,
-            "message": "WiFi capture started" if success else (stderr or "Failed to start capture"),
-        }
+
+        if success:
+            msg = "WiFi capture started"
+        else:
+            # Include stderr error details (e.g., "Failed to enable monitor mode")
+            msg = stderr.strip().split("\n")[-1] if stderr.strip() else stdout.strip().split("\n")[-1] if stdout.strip() else "Failed to start capture"
+
+        return {"success": success, "message": msg}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
@@ -523,7 +526,7 @@ async def wifi_capture_stop(user: Annotated[str, Depends(verify_credentials)]):
 async def wifi_capture_restart(user: Annotated[str, Depends(verify_credentials)]):
     """Restart WiFi packet capture."""
     try:
-        rc, stdout, stderr = await _run_wifi_capture(["restart"], timeout=40)
+        rc, stdout, stderr = await _run_wifi_capture(["restart"], timeout=60)
         success = rc == 0 and "started" in stdout.lower()
         return {
             "success": success,
