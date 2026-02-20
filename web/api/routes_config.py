@@ -233,8 +233,7 @@ async def update_configuration(
     except Exception as e:
         return {"success": False, "message": f"Failed to write config: {e}"}
 
-    # If NIC assignments changed, re-run network and firewall configuration
-    # to update systemd-networkd files and UFW rules
+    # If NIC assignments changed, re-run network, firewall, and IDS configuration
     nic_changed = "NIC1" in updates or "NIC2" in updates
     if nic_changed:
         try:
@@ -249,12 +248,28 @@ async def update_configuration(
                 timeout=30,
                 check=True,
             )
+            # Reconfigure Suricata and Zeek with new capture interface
+            subprocess.run(
+                ["bash", "/opt/networktap/setup/configure_suricata.sh"],
+                timeout=60,
+                check=False,  # non-fatal if suricata not installed
+            )
+            subprocess.run(
+                ["systemctl", "restart", "networktap-suricata.service"],
+                timeout=30,
+                check=False,
+            )
+            subprocess.run(
+                ["systemctl", "restart", "networktap-zeek.service"],
+                timeout=30,
+                check=False,
+            )
         except Exception as e:
             return {
                 "success": True,
                 "message": f"Config saved but reconfiguration failed: {e}",
                 "updated": list(updates.keys()),
-                "warning": "NIC assignments saved but network/firewall was not fully reconfigured. Reboot to apply.",
+                "warning": "NIC assignments saved but services were not fully reconfigured. Reboot to apply.",
             }
 
     result = {"success": True, "updated": list(updates.keys())}

@@ -61,11 +61,11 @@ echo "[+] Restarting services..."
 systemctl restart networktap-web.service
 
 if [[ "$SURICATA_ENABLED" == "yes" ]]; then
-    systemctl start networktap-suricata.service 2>/dev/null || true
+    systemctl restart networktap-suricata.service 2>/dev/null || true
 fi
 
 if [[ "$ZEEK_ENABLED" == "yes" ]]; then
-    systemctl start networktap-zeek.service 2>/dev/null || true
+    systemctl restart networktap-zeek.service 2>/dev/null || true
 fi
 
 echo "[+] Switched to ${NEW_MODE} mode"
