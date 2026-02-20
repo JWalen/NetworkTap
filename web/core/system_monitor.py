@@ -6,6 +6,9 @@ from pathlib import Path
 
 import psutil
 
+# Prime the CPU percent counter so the first non-blocking call returns a real value
+psutil.cpu_percent(interval=None)
+
 
 @dataclass
 class SystemStats:
@@ -43,7 +46,7 @@ class InterfaceStats:
 
 def get_system_stats(capture_dir: str = "/var/lib/networktap/captures") -> dict:
     """Gather current system statistics."""
-    cpu = psutil.cpu_percent(interval=0.5)
+    cpu = psutil.cpu_percent(interval=None)
     mem = psutil.virtual_memory()
     try:
         disk = psutil.disk_usage(capture_dir)

@@ -191,7 +191,9 @@ const Alerts = (() => {
         // Update badge
         updateBadge();
 
-        filterTable();
+        // Debounce filter on live alerts to avoid running on every single alert
+        if (filterTimeout) clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(() => filterTable(), 500);
     }
 
     function alertRow(a) {

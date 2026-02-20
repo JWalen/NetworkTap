@@ -394,7 +394,7 @@ const Dashboard = (() => {
         });
 
         await refresh();
-        App.setRefresh(refresh, 5000);
+        App.setRefresh(refresh, 10000);
     }
 
     // Load historical stats from backend
@@ -446,7 +446,7 @@ const Dashboard = (() => {
             const [status, ifaces, alerts] = await Promise.all([
                 api('/api/system/status'),
                 api('/api/system/interfaces'),
-                api('/api/alerts/all?limit=200').catch(() => ({ alerts: [] })),
+                api('/api/alerts/all?limit=20').catch(() => ({ alerts: [] })),
             ]);
 
             updateStats(status.system);
@@ -869,12 +869,14 @@ const Dashboard = (() => {
                 return `<div class="sparkline-bar" style="height:${pct}%" title="${d.toLocaleString()} pkts"></div>`;
             }).join('');
         } else {
-            // Update existing bars in-place (no layout reflow)
-            for (let i = 0; i < totalBars; i++) {
-                const pct = Math.max(3, (padded[i] / maxDelta) * 100);
-                bars[i].style.height = pct + '%';
-                bars[i].title = padded[i].toLocaleString() + ' pkts';
-            }
+            // Batch style updates in a single animation frame to avoid per-bar reflow
+            requestAnimationFrame(() => {
+                for (let i = 0; i < totalBars; i++) {
+                    const pct = Math.max(3, (padded[i] / maxDelta) * 100);
+                    bars[i].style.height = pct + '%';
+                    bars[i].title = padded[i].toLocaleString() + ' pkts';
+                }
+            });
         }
     }
 

@@ -1,5 +1,6 @@
 """Alert and IDS API endpoints."""
 
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -9,6 +10,10 @@ from core.config import get_config
 from core.alert_parser import parse_suricata_alerts, parse_zeek_alerts
 
 router = APIRouter()
+
+# Cache combined alerts to avoid re-parsing log files on every poll
+_alerts_cache = {"timestamp": 0, "data": None, "limit": 0}
+_ALERTS_CACHE_TTL = 5  # seconds
 
 
 @router.get("/suricata")
@@ -49,6 +54,17 @@ async def all_alerts(
     limit: int = Query(100, ge=1, le=1000),
 ):
     """Get combined alerts from all sources."""
+    now = time.time()
+    if (_alerts_cache["data"] is not None and
+            now - _alerts_cache["timestamp"] < _ALERTS_CACHE_TTL and
+            _alerts_cache["limit"] >= limit):
+        cached = _alerts_cache["data"]
+        return {
+            "alerts": cached["alerts"][:limit],
+            "count": min(cached["count"], limit),
+            "sources": cached["sources"],
+        }
+
     config = get_config()
 
     suricata = parse_suricata_alerts(config.suricata_eve_log, limit=limit)
@@ -57,8 +73,14 @@ async def all_alerts(
     combined = suricata + zeek
     combined.sort(key=lambda a: a.get("timestamp", ""), reverse=True)
 
-    return {
+    result = {
         "alerts": combined[:limit],
         "count": len(combined[:limit]),
         "sources": {"suricata": len(suricata), "zeek": len(zeek)},
     }
+
+    _alerts_cache["timestamp"] = now
+    _alerts_cache["data"] = result
+    _alerts_cache["limit"] = limit
+
+    return result
