@@ -566,7 +566,7 @@ const WiFi = (() => {
             if (!sel) return;
             try {
                 const result = await api('/api/config', {
-                    method: 'POST',
+                    method: 'PUT',
                     body: { wifi_capture_iface: sel.value }
                 });
                 toast(result.success ? 'Capture interface saved' : (result.message || 'Failed to save'), result.success ? 'success' : 'error');
