@@ -240,14 +240,19 @@ verify_installation() {
 }
 
 run_new_setup_scripts() {
-    log "Running setup scripts for new features..."
+    log "Running setup scripts for new/updated features..."
 
-    # FR202 front panel display — run setup if service not yet enabled
-    # SPI may not exist yet (overlay added by setup, needs reboot)
-    if ! systemctl is-enabled --quiet networktap-display 2>/dev/null; then
-        if [[ -f "$INSTALL_DIR/setup/configure_display.sh" ]]; then
-            log "  Configuring FR202 front panel display..."
-            bash "$INSTALL_DIR/setup/configure_display.sh" || log "  Warning: Display setup had issues"
+    # FR202 front panel display — always re-run to pick up new dependencies
+    if [[ -f "$INSTALL_DIR/setup/configure_display.sh" ]]; then
+        log "  Configuring FR202 front panel display..."
+        bash "$INSTALL_DIR/setup/configure_display.sh" || log "  Warning: Display setup had issues"
+    fi
+
+    # AI features
+    if [[ -f "$INSTALL_DIR/setup/configure_ai.sh" ]]; then
+        if ! systemctl is-enabled --quiet networktap-anomaly 2>/dev/null; then
+            log "  Configuring AI features..."
+            bash "$INSTALL_DIR/setup/configure_ai.sh" || log "  Warning: AI setup had issues"
         fi
     fi
 }

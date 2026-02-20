@@ -1,8 +1,8 @@
 # NetworkTap
 
-**v1.0.0**
+**v1.0.18**
 
-Network tap and monitoring appliance for the OnLogic FR201 (2-NIC Linux platform). Provides passive packet capture, inline bridging, IDS/IPS via Suricata and Zeek, AI-powered anomaly detection, and a modern web dashboard for administration.
+Network tap and monitoring appliance for the OnLogic FR201/FR202 (2-NIC Linux platform). Provides passive packet capture, inline bridging, IDS/IPS via Suricata and Zeek, AI-powered anomaly detection, and a modern web dashboard for administration.
 
 ## Features
 
@@ -12,12 +12,28 @@ Network tap and monitoring appliance for the OnLogic FR201 (2-NIC Linux platform
 - **AI Anomaly Detection**: Lightweight on-device detection of traffic anomalies, port scans, beaconing, and DNS threats
 - **AI Assistant**: On-device LLM (TinyLLaMA via Ollama) for natural language network analysis
 - **Web dashboard**: Dark-themed SPA with real-time alerts via WebSocket, system monitoring, capture control, and PCAP downloads
+- **FR202 Front Panel Display**: 5-page touch-navigable status display on the 3.5" ST7789V TFT with auto-dimming backlight
 - **Zeek Log Browser**: Browse, filter, and search Zeek logs (conn, dns, http, ssl, files, notice, weird)
 - **Traffic Statistics**: Connection trends, DNS analytics, service distribution, protocol breakdown
 - **Packet Viewer**: In-browser packet inspection with display filters and stream following
 - **PCAP Filtering**: Filter and preview packets before download using BPF expressions
 - **Service management**: systemd units for all daemons with automatic cleanup timers
 - **Firewall hardening**: UFW rules scoped to management interface
+- **OTA Updates**: Check for and install updates from GitHub releases with automatic backup and rollback
+
+## Supported Hardware
+
+| Platform | Description |
+|----------|-------------|
+| **OnLogic FR201** | 2-NIC Raspberry Pi CM4 appliance (headless) |
+| **OnLogic FR202** | 2-NIC Raspberry Pi CM4 appliance with 3.5" front panel touchscreen, DIO, and ADC |
+
+The FR202 front panel display shows system status across 5 touch-navigable pages:
+1. **Dashboard** - Mode, IP, CPU/MEM/DISK bars, service status, alert & PCAP counts
+2. **Network** - All interfaces with IP, state, speed, and MAC
+3. **Services** - All services with status, sub-state, and uptime
+4. **Alerts** - Total events, severity breakdown, top alert signatures
+5. **System** - Hostname, uptime, CPU temp, kernel, storage details, version
 
 ## Quick Start
 
@@ -37,16 +53,19 @@ sudo bash install.sh
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│                  FR201 Appliance             │
-│                                             │
-│  NIC1 (capture) ──┐                        │
-│                    ├─ tcpdump  (pcap)       │
-│                    ├─ Suricata (IDS alerts) │
-│                    └─ Zeek     (conn logs)  │
-│                                             │
-│  NIC2 (management) ── FastAPI Web Dashboard │
-└─────────────────────────────────────────────┘
++---------------------------------------------+
+|            FR201/FR202 Appliance             |
+|                                              |
+|  NIC1 (capture) --+                         |
+|                    +- tcpdump  (pcap)        |
+|                    +- Suricata (IDS alerts)  |
+|                    +- Zeek     (conn logs)   |
+|                                              |
+|  NIC2 (management) -- FastAPI Web Dashboard  |
+|                                              |
+|  FR202 Display -- ST7789V 320x240 TFT       |
+|    SPI3, touch via ST1633i on I2C5           |
++----------------------------------------------+
 ```
 
 ### SPAN Mode
@@ -65,9 +84,14 @@ NetworkTap/
 ├── uninstall.sh              # Clean removal
 ├── networktap.conf           # Main configuration
 ├── setup/                    # Installation scripts
+│   ├── configure_display.sh  # FR202 display & touch setup
+│   └── ...
 ├── config/                   # Suricata, Zeek, logrotate configs
 ├── services/                 # systemd unit files
-├── scripts/                  # Operational scripts
+├── scripts/
+│   ├── display_status.py     # FR202 front panel display daemon
+│   ├── update.sh             # OTA update script
+│   └── ...
 ├── web/
 │   ├── app.py                # FastAPI application
 │   ├── api/                  # REST API routes
@@ -89,11 +113,53 @@ The dashboard is a single-page application with a dark theme, accessible at `htt
 | **Alerts** | Real-time IDS alerts from Suricata and Zeek with severity filtering |
 | **AI Analysis** | Anomaly detection results, AI assistant chat, feature toggles |
 | **Network** | Interface status, operating mode switcher |
+| **WiFi** | WiFi client/AP mode, packet capture, site survey, wireless IDS, client tracking |
 | **PCAPs** | Browse and download capture files with filtering, storage usage |
 | **Statistics** | Traffic analytics, connection trends, DNS stats, service distribution |
 | **Zeek Logs** | Browse and search Zeek logs with type-specific views |
 | **Rules** | Suricata rule management |
-| **Settings** | Configuration overview, browser credential management |
+| **Terminal** | Web-based terminal with command whitelist |
+| **Updates** | Check for and install OTA updates with rollback |
+| **Settings** | Configuration overview, credential management |
+
+---
+
+## FR202 Front Panel Display
+
+The OnLogic FR202's 3.5" ST7789V TFT display is used to show system status without needing to access the web UI.
+
+### Hardware Configuration
+
+| Component | Detail |
+|-----------|--------|
+| Display IC | ST7789V 320x240 |
+| Bus | SPI3 (port=3, cs=0) |
+| DC Pin | GPIO 16 |
+| Reset Pin | GPIO 27 (open-drain) |
+| SPI Mode | 3 |
+| Rotation | 180 degrees |
+| Backlight | I2C expander at 0x3C on I2C bus 1 |
+| Touch IC | ST1633i at 0x70 on I2C bus 5 |
+| Touch Interrupt | GPIO 26 |
+
+### config.txt Requirements (FR202)
+
+```
+dtparam=i2c_arm=on
+#dtparam=spi=on
+dtoverlay=i2c1,pins_44_45
+dtoverlay=spi3-1cs,cs0_pin=24
+dtoverlay=spi4-1cs
+dtoverlay=i2c5,pins12_13=on,baudrate=40000
+```
+
+**Note:** Generic `dtparam=spi=on` must be **commented out** per OnLogic documentation. The FR202 uses specific SPI3/SPI4 overlays instead.
+
+### Touch Navigation
+
+- Tap the screen to cycle through pages
+- Backlight auto-dims after 2 minutes idle
+- First tap on a dimmed screen wakes it without changing page
 
 ---
 
@@ -121,13 +187,6 @@ The Zeek Logs page (`#zeek`) provides a powerful interface to browse and search 
 - **Time Range**: Limit to last hour, 6 hours, 24 hours, 3 days, or week
 - **Text Search**: Full-text search across all fields
 
-### Expandable Details
-
-Click any row to expand and see full entry details including:
-- Connection UID for correlation across logs
-- Complete byte/packet counts
-- Protocol-specific metadata (DNS answers, HTTP headers, SSL certs)
-
 ---
 
 ## Traffic Statistics
@@ -136,10 +195,7 @@ The Statistics page (`#stats`) provides comprehensive traffic analytics.
 
 ### Connection Trends
 
-Interactive line chart showing connection counts over time with selectable ranges:
-- 6 hours, 24 hours, 3 days, 1 week
-
-Hover over points to see exact values.
+Interactive line chart showing connection counts over time with selectable ranges (6h, 24h, 3d, 1w).
 
 ### DNS Analytics
 
@@ -169,72 +225,14 @@ The PCAPs page (`#pcaps`) includes a lightweight in-browser packet viewer.
 - **Display Filters**: Filter packets using Wireshark-style syntax
 - **Stream Following**: View TCP/UDP stream content in ASCII or hex
 
-### How to Use
-
-1. Click the **View** button next to any PCAP file
-2. Browse packets in the paginated list
-3. Click any row to see full packet details
-4. Use the filter box for display filters (e.g., `tcp.port == 443`)
-5. Click **Streams** to see TCP/UDP conversations
-
 ### Display Filter Examples
 
 ```
-# TCP port 443
 tcp.port == 443
-
-# HTTP traffic
 http
-
-# Specific IP
 ip.addr == 192.168.1.100
-
-# DNS queries
 dns
-
-# TLS handshakes
 tls.handshake
-```
-
-### Resource Usage
-
-The packet viewer parses on-demand using tshark, never loading the entire PCAP into memory. Safe for large captures on 8GB systems.
-
----
-
-## PCAP Filtering
-
-The PCAPs page (`#pcaps`) also includes packet filtering before download.
-
-### How to Use
-
-1. Click the **filter icon** next to any PCAP file
-2. Enter filter criteria:
-   - **Source IP**: e.g., `192.168.1.100`
-   - **Destination IP**: e.g., `10.0.0.1`
-   - **Source/Dest Port**: e.g., `443`
-   - **Protocol**: TCP, UDP, ICMP, ARP
-   - **Raw BPF**: e.g., `tcp port 443 and host 192.168.1.1`
-3. Click **Preview** to see how many packets match
-4. Click **Download Filtered** to get only matching packets
-
-### BPF Filter Examples
-
-```
-# All TCP traffic on port 443
-tcp port 443
-
-# Traffic to/from a specific host
-host 192.168.1.100
-
-# HTTP traffic only
-tcp port 80 or tcp port 8080
-
-# DNS queries
-udp port 53
-
-# Specific conversation
-host 192.168.1.1 and host 10.0.0.1
 ```
 
 ---
@@ -256,11 +254,6 @@ Lightweight statistical analysis that runs continuously to detect:
 | **DNS DGA** | High-entropy domain names (malware indicator) |
 | **DNS Tunneling** | Excessive TXT queries (data exfiltration) |
 
-Configure sensitivity in `/etc/networktap.conf`:
-- `low` - Fewer false positives, may miss subtle anomalies
-- `medium` - Balanced (default)
-- `high` - More sensitive, may have more false positives
-
 ### AI Assistant
 
 Natural language interface powered by TinyLLaMA (via Ollama). Ask questions like:
@@ -268,19 +261,11 @@ Natural language interface powered by TinyLLaMA (via Ollama). Ask questions like
 - "Summarize the recent alerts"
 - "What can you tell me about IP 192.168.1.100?"
 
-The assistant has context about recent alerts, traffic statistics, and detected anomalies.
-
-### Resource Usage
-
-- **Anomaly Detection**: ~50MB RAM, runs every 60 seconds
-- **AI Assistant**: ~1.5GB RAM when active (model loaded on-demand)
-- Both features can be toggled on/off via the web UI or config file
-
 ---
 
 ## Configuration
 
-Edit `/etc/networktap.conf` (or `/opt/networktap/networktap.conf`) to change settings.
+Edit `/etc/networktap.conf` to change settings.
 
 Key options:
 
@@ -295,9 +280,7 @@ Key options:
 | `SURICATA_ENABLED` | `yes` | Enable Suricata IDS |
 | `ZEEK_ENABLED` | `yes` | Enable Zeek |
 | `ANOMALY_DETECTION_ENABLED` | `yes` | Enable AI anomaly detection |
-| `ANOMALY_SENSITIVITY` | `medium` | Detection sensitivity (low/medium/high) |
 | `AI_ASSISTANT_ENABLED` | `yes` | Enable AI assistant |
-| `OLLAMA_MODEL` | `tinyllama` | LLM model for AI assistant |
 
 After editing, restart services:
 
@@ -317,6 +300,7 @@ sudo systemctl stop networktap-capture
 
 # View logs
 journalctl -u networktap-web -f
+journalctl -u networktap-display -f
 
 # Health check
 sudo /opt/networktap/scripts/health_check.sh
@@ -327,7 +311,8 @@ sudo /opt/networktap/scripts/switch_mode.sh bridge
 
 ## Requirements
 
-- Debian 12 / Ubuntu 22.04+
+- OnLogic FR201 or FR202 (Raspberry Pi CM4)
+- Debian 12 / Ubuntu 22.04+ / Raspberry Pi OS (Bookworm)
 - 2 Ethernet NICs
 - 4 GB RAM minimum (8 GB recommended)
 - 120 GB+ storage for packet captures
