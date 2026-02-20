@@ -5,6 +5,17 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.28] - 2026-02-20
+
+### Performance
+- **Capture status caching**: 5-second TTL cache on capture file listing avoids redundant directory scans
+- **Zeek conn.log caching**: 30-second TTL cache on parsed connection data
+- **Binary path caching**: `lru_cache` on capinfos/tshark/tcpdump path lookups
+- **Port name caching**: `lru_cache(128)` on service name resolution
+- **Efficient top-N**: Use `heapq.nlargest` instead of full sort for top talkers/ports
+- **Debounced filters**: 300ms debounce on alert and terminal filter inputs
+- **Timer cleanup**: Alerts and terminal pages properly clear all timers on page leave
+
 ## [1.0.27] - 2026-02-20
 
 ### Changed

@@ -3,11 +3,16 @@
 import logging
 import os
 import subprocess
+import time
 from pathlib import Path
 
 from core.config import get_config
 
 logger = logging.getLogger("networktap.capture")
+
+# Cache for capture file listing with TTL
+_capture_cache = {"timestamp": 0, "data": None}
+_CACHE_TTL = 5  # seconds
 
 
 def is_capture_running() -> bool:
@@ -74,6 +79,14 @@ def get_capture_status() -> dict:
     config = get_config()
     running = is_capture_running()
 
+    # Use cached data if recent
+    current_time = time.time()
+    if (_capture_cache["data"] is not None and
+            current_time - _capture_cache["timestamp"] < _CACHE_TTL):
+        cached = _capture_cache["data"]
+        cached["running"] = running  # Always update running status
+        return cached
+
     # Count capture files
     capture_dir = Path(config.capture_dir)
     pcap_files = []
@@ -92,7 +105,7 @@ def get_capture_status() -> dict:
 
     pcap_files.sort(key=lambda x: x["modified"], reverse=True)
 
-    return {
+    result = {
         "running": running,
         "interface": config.capture_interface,
         "mode": config.mode,
@@ -104,6 +117,11 @@ def get_capture_status() -> dict:
         "total_size": total_size,
         "recent_files": pcap_files[:10],
     }
+
+    _capture_cache["timestamp"] = current_time
+    _capture_cache["data"] = result
+
+    return result
 
 
 def list_pcap_files() -> list[dict]:
