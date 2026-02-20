@@ -587,24 +587,24 @@ const Settings = (() => {
     function renderConfigSectionContent(id, c) {
         switch (id) {
             case 'interfaces': return `
-                <p class="settings-section-desc">Network interface assignments. NIC1 is the capture/monitor interface, NIC2 is the management/uplink interface.</p>
+                <p class="settings-section-desc">Assign which physical interface is used for capture and management.</p>
                 <div class="settings-form-grid">
                     <div class="form-group">
-                        <label class="form-label">NIC1 (Capture)</label>
+                        <label class="form-label">Capture Interface</label>
                         <select id="nic1" data-cfg="nic1">
                             <option value="${escapeHtml(c.nic1 || '')}">${escapeHtml(c.nic1 || '?')}</option>
                         </select>
-                        <p class="form-help">Interface used for packet capture</p>
+                        <p class="form-help">Monitors traffic in promiscuous mode (no IP)</p>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">NIC2 (Management)</label>
+                        <label class="form-label">Management Interface</label>
                         <select id="nic2" data-cfg="nic2">
                             <option value="${escapeHtml(c.nic2 || '')}">${escapeHtml(c.nic2 || '?')}</option>
                         </select>
-                        <p class="form-help">Interface used for management/web UI</p>
+                        <p class="form-help">Provides SSH and web UI access (DHCP or static IP)</p>
                     </div>
                 </div>
-                <p class="form-help" style="margin-top:8px;">Changing NIC assignments requires a service restart. The capture interface monitors traffic; the management interface provides web UI access.</p>`;
+                <p class="form-help" style="margin-top:8px;">Saving will reconfigure networking. The capture interface will have no IP address and run in promiscuous mode.</p>`;
             case 'capture': return `
                 <p class="settings-section-desc">Packet capture settings for tcpdump.</p>
                 <div class="settings-form-grid">
@@ -747,14 +747,6 @@ const Settings = (() => {
                 <div class="settings-system-item">
                     <span class="settings-system-label">Mode</span>
                     <span class="settings-system-value">${escapeHtml(c.mode || '?')}</span>
-                </div>
-                <div class="settings-system-item">
-                    <span class="settings-system-label">NIC1</span>
-                    <span class="settings-system-value">${escapeHtml(c.nic1 || '?')}</span>
-                </div>
-                <div class="settings-system-item">
-                    <span class="settings-system-label">NIC2</span>
-                    <span class="settings-system-value">${escapeHtml(c.nic2 || '?')}</span>
                 </div>
                 <div class="settings-system-item">
                     <span class="settings-system-label">Capture</span>
