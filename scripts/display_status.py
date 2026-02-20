@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""NetworkTap Front Panel Display - FR202 ST7789 2.4" 320x240 TFT
+"""NetworkTap Front Panel Display - FR202 ST7789V 3.5" 320x240 TFT
 
 Renders system status to the OnLogic FR202 front panel display.
 Uses PIL/Pillow for rendering and st7789 SPI driver for output.
+
+FR202 Display Configuration (from OnLogic reference):
+  - ST7789V on SPI3 (port=3, cs=0, dc=GPIO16, rst=GPIO27 open-drain)
+  - SPI mode 3, rotation 180, 60MHz
+  - Backlight via I2C expander at 0x3C on I2C bus 1
 
 Refreshes every 5 seconds with:
   - Mode, hostname, IP
@@ -302,27 +307,93 @@ def find_font(size):
     return ImageFont.load_default()
 
 
+def enable_backlight():
+    """Turn on the FR202 backlight via I2C expander at 0x3C on bus 1.
+
+    Uses smbus if available (matching OnLogic's fr202-i2c utility),
+    falls back to i2cset shell commands.
+    """
+    DEV_ADDR = 0x3C
+    REG_OUTPUT = 0x01
+    REG_CONFIG = 0x03
+    PIN_DIRS = 0x81  # 0b10000001 — matches OnLogic fr202-i2c pindirs
+
+    try:
+        try:
+            import smbus2 as smbus
+        except ImportError:
+            import smbus
+        bus = smbus.SMBus(1)
+        bus.write_byte_data(DEV_ADDR, REG_CONFIG, PIN_DIRS)
+        # Read current output state, clear bit 6 (p7v6_shdn) to enable backlight
+        current = bus.read_byte_data(DEV_ADDR, REG_OUTPUT)
+        bus.write_byte_data(DEV_ADDR, REG_OUTPUT, current & ~(1 << 6))
+        bus.close()
+        log.info("Backlight enabled via smbus (bus 1, addr 0x3C)")
+    except Exception:
+        # Fallback to i2cset shell commands
+        try:
+            subprocess.run(["i2cset", "-y", "1", "0x3c", "0x03", "0x81"],
+                           capture_output=True, timeout=5)
+            subprocess.run(["i2cset", "-y", "1", "0x3c", "0x01", "0xbf"],
+                           capture_output=True, timeout=5)
+            log.info("Backlight enabled via i2cset (bus 1, addr 0x3C)")
+        except Exception as e:
+            log.warning(f"Could not enable backlight: {e}")
+
+
 def init_display():
     """Initialize the ST7789 SPI display. Returns the display object.
 
-    The FR202 uses SPI3 with cs0_pin=24 (dtoverlay=spi3-1cs,cs0_pin=24).
-    SPI3 maps to /dev/spidev3.0 → port=3, cs=0.
-    Backlight is controlled via I2C (fr202-i2c), not a GPIO pin.
+    FR202 display configuration (from OnLogic demo-display reference):
+      - SPI3 with cs0_pin=24 (dtoverlay=spi3-1cs,cs0_pin=24)
+      - DC on GPIO 16
+      - Reset on GPIO 27 (open-drain, active-low)
+      - SPI mode 3
+      - Rotation 180
+      - Backlight via I2C expander (not GPIO)
     """
     import st7789
 
-    # FR202: SPI3, CS0, DC on GPIO25, no GPIO backlight (I2C-controlled)
+    # Configure reset pin (GPIO 27) as open-drain output, matching OnLogic demo
+    rst_pin = None
+    try:
+        import gpiod
+        from gpiod.line import Direction, Value, Drive
+        import gpiodevice
+        rst_cfg = gpiod.LineSettings(
+            direction=Direction.OUTPUT,
+            output_value=Value.INACTIVE,
+            drive=Drive.OPEN_DRAIN,
+            active_low=True,
+        )
+        rst_pin = gpiodevice.get_pin(27, "st7789-rst", rst_cfg)
+        log.info("Reset pin configured: GPIO 27 (open-drain)")
+    except Exception as e:
+        log.warning(f"Could not configure GPIO 27 reset pin: {e}")
+        log.warning("Display may not initialize correctly without reset")
+
+    # FR202: SPI3, CS0, DC=GPIO16, RST=GPIO27, rotation=180, SPI mode 3
     disp = st7789.ST7789(
         height=HEIGHT,
         width=WIDTH,
-        rotation=0,
+        rotation=180,
         port=3,
         cs=0,
-        dc=25,
+        dc=16,
+        rst=rst_pin,
         backlight=None,
         spi_speed_hz=60_000_000,
     )
-    disp.begin()
+
+    # Set SPI mode 3 before initializing (critical for FR202)
+    disp._spi.mode = 3
+    disp._init()
+
+    # Turn on backlight via I2C
+    enable_backlight()
+
+    log.info("ST7789 display initialized (320x240, SPI3, DC=16, RST=27, mode=3, rot=180)")
     return disp
 
 
@@ -349,7 +420,6 @@ def main():
     display = None
     try:
         display = init_display()
-        log.info("ST7789 display initialized (320x240)")
     except Exception as e:
         log.warning(f"Could not initialize ST7789 display: {e}")
         log.warning("Running in headless mode (logging frames to console)")
