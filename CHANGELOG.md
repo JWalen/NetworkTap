@@ -5,6 +5,13 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.35] - 2026-02-20
+
+### Fixed
+- **Console login header**: Fixed `/etc/issue` splash (update_issue.sh) showing "Acquiring" — was looking at wrong interface after NIC swap
+- **Split ASCII art** on all console screens (update_issue.sh, console_status.sh) — NETWORK on one line, TAP below
+- **Default NIC fallback**: All console scripts now default to `eth0` for management instead of `eth1`
+
 ## [1.0.34] - 2026-02-20
 
 ### Fixed

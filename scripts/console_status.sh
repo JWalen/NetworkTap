@@ -30,7 +30,7 @@ show_status() {
     if [[ "${MODE:-span}" == "bridge" ]]; then
         MGMT_IFACE="${BRIDGE_NAME:-br0}"
     else
-        MGMT_IFACE="${NIC2:-eth1}"
+        MGMT_IFACE="${NIC2:-eth0}"
     fi
 
     # Get IP address
