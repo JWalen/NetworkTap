@@ -750,7 +750,7 @@ const Settings = (() => {
             try {
                 const result = await api('/api/config/', {
                     method: 'PUT',
-                    body: JSON.stringify(body),
+                    body: body,
                 });
                 if (result.success) {
                     toast(result.message, 'success');
