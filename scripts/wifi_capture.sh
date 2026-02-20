@@ -45,21 +45,26 @@ detect_wifi_interface() {
 
 check_monitor_support() {
     local iface="$1"
-    
+
     if ! command -v iw &>/dev/null; then
         error "iw command not found. Install with: apt install iw"
     fi
-    
-    if iw "$iface" info | grep -q "type monitor"; then
+
+    # Already in monitor mode
+    if iw "$iface" info 2>/dev/null | grep -q "type monitor"; then
         return 0
     fi
-    
-    if iw list 2>/dev/null | grep -q "monitor"; then
-        return 0
+
+    # Check if the phy supports monitor mode at all
+    local phy=$(iw dev "$iface" info 2>/dev/null | grep -oP 'wiphy \K\d+')
+    if [[ -n "$phy" ]]; then
+        if ! iw phy "phy${phy}" info 2>/dev/null | grep -qP '^\s+\* monitor'; then
+            local driver=$(basename "$(readlink -f "/sys/class/net/${iface}/device/driver")" 2>/dev/null || echo "unknown")
+            error "Monitor mode not supported by $iface ($driver driver). The onboard WiFi chip does not support monitor mode. Use a USB WiFi adapter that supports monitor mode (e.g. Alfa AWUS036ACH, TP-Link TL-WN722N v1)."
+        fi
     fi
-    
-    log "Warning: Monitor mode may not be supported on $iface"
-    return 0  # Continue anyway
+
+    return 0
 }
 
 enable_monitor_mode() {
@@ -93,6 +98,13 @@ enable_monitor_mode() {
             MONITOR_IFACE="$iface"
         } || {
             log "  iw failed: $monitor_err"
+
+            # Check for driver-level "not supported" — no fallback will help
+            if echo "$monitor_err" | grep -qi "not supported\|EOPNOTSUPP\|(-95)"; then
+                local driver=$(basename "$(readlink -f "/sys/class/net/${iface}/device/driver")" 2>/dev/null || echo "unknown")
+                error "Monitor mode not supported by $iface ($driver driver). Use a USB WiFi adapter that supports monitor mode (e.g. Alfa AWUS036ACH, TP-Link TL-WN722N v1)."
+            fi
+
             # Try airmon-ng as fallback
             if command -v airmon-ng &>/dev/null; then
                 log "  Trying airmon-ng..."

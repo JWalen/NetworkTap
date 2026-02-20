@@ -439,7 +439,7 @@ async def wifi_capture_status(user: Annotated[str, Depends(verify_credentials)])
     """Get WiFi packet capture status."""
     try:
         rc, stdout, stderr = await _run_wifi_capture(["status"], timeout=10)
-        
+
         status_info = {
             "enabled": False,
             "running": False,
@@ -448,7 +448,41 @@ async def wifi_capture_status(user: Annotated[str, Depends(verify_credentials)])
             "max_files": None,
             "file_count": 0,
             "total_size": None,
+            "monitor_supported": True,
         }
+
+        # Check if monitor mode is supported on the WiFi interface
+        iface = _find_wifi_iface()
+        if iface:
+            try:
+                check = await asyncio.create_subprocess_exec(
+                    "iw", "phy",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                phy_out, _ = await asyncio.wait_for(check.communicate(), timeout=5)
+                # Get the phy for this iface
+                info_proc = await asyncio.create_subprocess_exec(
+                    "iw", "dev", iface, "info",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                info_out, _ = await asyncio.wait_for(info_proc.communicate(), timeout=5)
+                import re
+                phy_match = re.search(r"wiphy\s+(\d+)", info_out.decode(errors="replace"))
+                if phy_match:
+                    phy_name = f"phy{phy_match.group(1)}"
+                    phy_info_proc = await asyncio.create_subprocess_exec(
+                        "iw", "phy", phy_name, "info",
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+                    phy_info_out, _ = await asyncio.wait_for(phy_info_proc.communicate(), timeout=5)
+                    phy_info_text = phy_info_out.decode(errors="replace")
+                    if "* monitor" not in phy_info_text:
+                        status_info["monitor_supported"] = False
+            except Exception:
+                pass  # If check fails, assume supported
         
         current_section = None
         for line in stdout.strip().splitlines():

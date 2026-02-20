@@ -5,6 +5,13 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.39] - 2026-02-20
+
+### Fixed
+- **Monitor mode detection**: Pre-checks `iw phy info` for monitor support before attempting — gives clear error with USB adapter recommendations instead of cryptic "operation not supported"
+- **Capture UI warning**: WiFi capture tab shows a visible warning banner when the onboard WiFi doesn't support monitor mode
+- **Driver-level error handling**: Detects EOPNOTSUPP/not-supported errors and short-circuits instead of trying futile fallbacks
+
 ## [1.0.38] - 2026-02-20
 
 ### Fixed

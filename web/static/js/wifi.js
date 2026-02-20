@@ -552,7 +552,14 @@ const WiFi = (() => {
     async function loadCaptureStatus() {
         try {
             const status = await api('/api/wifi/capture/status');
-            const html = `
+            let html = '';
+            if (status.monitor_supported === false) {
+                html += `<div class="status-warning" style="background:rgba(255,170,0,0.1);border:1px solid rgba(255,170,0,0.3);border-radius:8px;padding:12px;margin-bottom:12px;color:#ffa800;font-size:0.85rem;">
+                    <strong>Monitor mode not supported</strong><br>
+                    The onboard WiFi chip does not support monitor mode, which is required for packet capture. Use a USB WiFi adapter that supports monitor mode (e.g. Alfa AWUS036ACH, TP-Link TL-WN722N v1).
+                </div>`;
+            }
+            html += `
                 <div class="${status.running ? 'status-good' : 'status-off'}">
                     ${status.running ? 'Running' : 'Stopped'}
                 </div>
