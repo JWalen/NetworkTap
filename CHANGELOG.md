@@ -5,6 +5,15 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.27] - 2026-02-20
+
+### Changed
+- Swapped NIC assignments: eth1 is now capture, eth0 is now management/uplink
+
+### Added
+- **Reboot button** in Settings > Power with double confirmation prompt
+- `POST /api/system/reboot` endpoint (admin only)
+
 ## [1.0.26] - 2026-02-20
 
 ### Changed

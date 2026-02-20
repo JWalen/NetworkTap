@@ -59,6 +59,13 @@ const Settings = (() => {
                     </button>
 
                     <div class="settings-nav-section">System</div>
+                    <button class="settings-nav-item" data-tab="system">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/>
+                            <line x1="12" y1="2" x2="12" y2="12"/>
+                        </svg>
+                        Power
+                    </button>
                     <button class="settings-nav-item" data-tab="config">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                             <circle cx="12" cy="12" r="3"/>
@@ -88,6 +95,7 @@ const Settings = (() => {
             case 'auth': renderAuthTab(container); break;
             case 'users': await renderUsersTab(container); break;
             case 'backup': await renderBackupTab(container); break;
+            case 'system': renderSystemTab(container); break;
             case 'config': await renderConfigTab(container); break;
         }
     }
@@ -499,6 +507,37 @@ const Settings = (() => {
         a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
+    }
+
+    // ── System / Power Tab ────────────────────────────────────────
+
+    function renderSystemTab(container) {
+        container.innerHTML = `
+            <div class="settings-section">
+                <h2 class="settings-section-title">Power Management</h2>
+                <p class="settings-section-desc">Reboot the appliance. All active captures will stop and resume after restart.</p>
+                <div style="margin-top:16px;">
+                    <button class="btn btn-primary" id="btn-reboot" style="background:var(--red);border-color:var(--red);">Reboot Appliance</button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('btn-reboot').addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to reboot the appliance? All active captures will be interrupted.')) return;
+            if (!confirm('This will reboot the device immediately. Continue?')) return;
+
+            const btn = document.getElementById('btn-reboot');
+            btn.disabled = true;
+            btn.textContent = 'Rebooting...';
+            try {
+                await api('/api/system/reboot', { method: 'POST' });
+                toast('Rebooting — the device will be back online shortly', 'success');
+            } catch (e) {
+                toast('Failed to reboot: ' + e.message, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Reboot Appliance';
+            }
+        });
     }
 
     // ── Config Tab ───────────────────────────────────────────────

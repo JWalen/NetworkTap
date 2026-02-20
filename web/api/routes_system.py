@@ -196,3 +196,17 @@ async def read_logs(
 
     raw_lines = _tail_lines(p, lines)
     return {"source": source, "path": path, "lines": raw_lines, "available": True}
+
+
+@router.post("/reboot")
+async def reboot_system(user: Annotated[str, Depends(require_admin)]):
+    """Reboot the appliance (requires admin)."""
+    try:
+        subprocess.Popen(
+            ["shutdown", "-r", "+0"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return {"success": True, "message": "Rebooting..."}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
