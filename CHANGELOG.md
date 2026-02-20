@@ -5,6 +5,11 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.25] - 2026-02-20
+
+### Changed
+- Screensaver clock doubled to 64px font — fills the space under the logo
+
 ## [1.0.24] - 2026-02-20
 
 ### Changed
