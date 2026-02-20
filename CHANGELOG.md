@@ -5,6 +5,12 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.33] - 2026-02-20
+
+### Changed
+- **Clearer NIC labels**: Settings UI shows "Capture Interface" and "Management Interface" instead of NIC1/NIC2
+- Simplified system info banner — removed redundant NIC1/NIC2 entries
+
 ## [1.0.32] - 2026-02-20
 
 ### Fixed
