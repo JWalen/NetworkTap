@@ -5,6 +5,15 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.43] - 2026-02-20
+
+### Added
+- **Suricata Logs page**: Full EVE log browser with tabs for Alerts, DNS, HTTP, TLS, Flows, Files, and Stats
+- Filtering by IP, port, protocol, time range, and text search — same UX as the Zeek Logs page
+- Expandable rows with detailed fields per event type (SID, JA3, User-Agent, cert info, etc.)
+- Stats tab shows engine performance: packets processed, kernel drops, drop %, alert count
+- New sidebar nav entry under Data & Logs
+
 ## [1.0.42] - 2026-02-20
 
 ### Fixed

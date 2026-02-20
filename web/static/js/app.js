@@ -14,6 +14,7 @@ const App = (() => {
         stats: Stats,
         rules: Rules,
         zeek: Zeek,
+        suricata: Suricata,
         ai: AI,
         backup: Backup,
         users: Users,
@@ -106,6 +107,7 @@ const App = (() => {
             stats: 'Traffic Statistics',
             rules: 'Suricata Rules',
             zeek: 'Zeek Logs',
+            suricata: 'Suricata Logs',
             ai: 'AI Analysis',
             help: 'Help',
         };
