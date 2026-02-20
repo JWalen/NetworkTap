@@ -683,7 +683,7 @@ const Settings = (() => {
                 <p class="settings-section-desc">WiFi monitor mode capture settings.</p>
                 <div class="settings-form-grid">
                     ${cfgToggle('wifi_capture_enabled', 'Enabled', c.wifi_capture_enabled)}
-                    ${cfgInput('wifi_capture_channel', 'Channel', c.wifi_capture_channel, 'number')}
+                    ${cfgSelect('wifi_capture_channel', 'Channel', String(c.wifi_capture_channel || 1), ['1','2','3','4','5','6','7','8','9','10','11','12','13','14'])}
                     ${cfgInput('wifi_capture_max_size_mb', 'Max File Size (MB)', c.wifi_capture_max_size_mb, 'number')}
                     ${cfgInput('wifi_capture_max_files', 'Max Files', c.wifi_capture_max_files, 'number')}
                     ${cfgInput('wifi_capture_filter', 'BPF Filter', c.wifi_capture_filter, 'text', 'Empty = capture all')}
