@@ -612,13 +612,15 @@ const Settings = (() => {
                     ${cfgInput('wifi_capture_filter', 'BPF Filter', c.wifi_capture_filter, 'text', 'Empty = capture all')}
                 </div>`;
             case 'display': return `
-                <p class="settings-section-desc">FR202 front panel display settings. Changes take effect on next display service restart.</p>
+                <p class="settings-section-desc">FR202 front panel display settings. Changes take effect within 60 seconds (or restart the display service).</p>
                 <div class="settings-form-grid">
                     ${cfgToggle('display_enabled', 'Display Enabled', c.display_enabled)}
                     ${cfgInput('display_refresh', 'Refresh Interval (sec)', c.display_refresh, 'number', 'How often the screen redraws (1-60)')}
                     ${cfgInput('display_backlight_timeout', 'Backlight Timeout (sec)', c.display_backlight_timeout, 'number', '0 = never dim, 30-600 recommended')}
                     ${cfgSelect('display_default_page', 'Default Page', c.display_default_page, ['dashboard', 'network', 'services', 'alerts', 'system'])}
+                    ${cfgToggle('display_screensaver', 'Screensaver', c.display_screensaver)}
                 </div>
+                <p class="form-help" style="margin-top:8px;">When screensaver is enabled, the display shows a pulsing logo with clock after the backlight timeout. When disabled, the backlight simply turns off.</p>
                 <div style="margin-top:12px;">
                     <button class="btn btn-secondary btn-sm" id="btn-restart-display">Restart Display Service</button>
                 </div>`;

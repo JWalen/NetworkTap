@@ -712,15 +712,13 @@ PAGE_RENDERERS = [render_dashboard, render_network, render_services, render_aler
 
 # ─── Boot Splash & Screensaver ──────────────────────────────────────
 
-# Compact block-art "NETWORKTAP" — fits 320px at font size 7
-# Each letter is 4px wide + 1px gap, "NETWORKTAP" = 10 chars
+# Block-art logo — "NETWORK" on line 1, "TAP" on line 2, centered on 320px
 LOGO_LINES = [
-    "█▄ █ █▀▀ ▀█▀ █   █ █▀█ █▀▄ █▄▀ ▀█▀ ▄▀█ █▀▄",
-    "█ ▀█ ██▄  █  ▀▄▀▄▀ █▄█ █▀▄ █ █  █  █▀█ █▀▀",
-]
-
-LOGO_LINES_SM = [
-    "N E T W O R K T A P",
+    "█▄ █ █▀▀ ▀█▀ █   █ █▀█ █▀▄ █▄▀",
+    "█ ▀█ ██▄  █  ▀▄▀▄▀ █▄█ █▀▄ █ █",
+    "",
+    "▀█▀ ▄▀█ █▀▄",
+    " █  █▀█ █▀▀",
 ]
 
 
@@ -728,13 +726,9 @@ def render_logo_screen(draw, font, font_sm, color=ACCENT, subtitle="", show_vers
     """Render the NetworkTap logo screen (used for boot splash and screensaver)."""
     draw.rectangle([0, 0, WIDTH, HEIGHT], fill=BG)
 
-    # Center the block art vertically
-    logo_y = 70
-
-    # Try to render block art with a small font
+    # Try to render block art with a monospace font
     try:
         from PIL import ImageFont
-        # Use a slightly larger font for the block art
         block_font = None
         for path in [
             "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
@@ -742,34 +736,48 @@ def render_logo_screen(draw, font, font_sm, color=ACCENT, subtitle="", show_vers
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         ]:
             if os.path.exists(path):
-                block_font = ImageFont.truetype(path, 16)
+                block_font = ImageFont.truetype(path, 14)
                 break
 
         if block_font:
+            # Calculate total height: 5 lines, skip blank line 2
+            line_h = 17
+            total_h = len(LOGO_LINES) * line_h
+            logo_y = (HEIGHT - total_h) // 2 - 15  # nudge up for subtitle/version
+
             for i, line in enumerate(LOGO_LINES):
+                if not line:
+                    continue
                 bbox = block_font.getbbox(line)
                 text_w = bbox[2] - bbox[0] if bbox else 200
                 x = (WIDTH - text_w) // 2
-                draw.text((x, logo_y + i * 20), line, fill=color, font=block_font)
+                draw.text((x, logo_y + i * line_h), line, fill=color, font=block_font)
+
+            line_y = logo_y + total_h + 4
         else:
-            # Fallback: simple text
-            draw.text((WIDTH // 2, logo_y), "NETWORKTAP", fill=color, font=font, anchor="ma")
+            # Fallback: plain text on two lines
+            logo_y = HEIGHT // 2 - 30
+            draw.text((WIDTH // 2, logo_y), "NETWORK", fill=color, font=font, anchor="ma")
+            draw.text((WIDTH // 2, logo_y + 18), "TAP", fill=color, font=font, anchor="ma")
+            line_y = logo_y + 44
     except Exception:
-        draw.text((WIDTH // 2, logo_y), "NETWORKTAP", fill=color, font=font, anchor="ma")
+        logo_y = HEIGHT // 2 - 30
+        draw.text((WIDTH // 2, logo_y), "NETWORK", fill=color, font=font, anchor="ma")
+        draw.text((WIDTH // 2, logo_y + 18), "TAP", fill=color, font=font, anchor="ma")
+        line_y = logo_y + 44
 
     # Accent line under logo
-    line_y = logo_y + 50
-    line_w = 120
+    line_w = 100
     draw.line([(WIDTH // 2 - line_w // 2, line_y), (WIDTH // 2 + line_w // 2, line_y)], fill=color, width=2)
 
     # Subtitle
     if subtitle:
-        draw.text((WIDTH // 2, line_y + 12), subtitle, fill=DIM, font=font_sm, anchor="ma")
+        draw.text((WIDTH // 2, line_y + 10), subtitle, fill=DIM, font=font_sm, anchor="ma")
 
     # Version
     if show_version:
         version = get_version()
-        draw.text((WIDTH // 2, HEIGHT - 20), f"v{version}", fill=DIVIDER, font=font_sm, anchor="ma")
+        draw.text((WIDTH // 2, HEIGHT - 18), f"v{version}", fill=DIVIDER, font=font_sm, anchor="ma")
 
 
 def render_screensaver(draw, font, font_sm, tick):
@@ -978,6 +986,7 @@ def main():
     refresh_interval = int(conf.get("DISPLAY_REFRESH", REFRESH_INTERVAL))
     backlight_timeout = int(conf.get("DISPLAY_BACKLIGHT_TIMEOUT", BACKLIGHT_TIMEOUT))
     default_page = conf.get("DISPLAY_DEFAULT_PAGE", DEFAULT_PAGE)
+    screensaver_enabled = conf.get("DISPLAY_SCREENSAVER", "yes").lower() == "yes"
 
     # Clamp to sane ranges
     refresh_interval = max(1, min(60, refresh_interval))
@@ -1018,6 +1027,7 @@ def main():
             conf = load_config()
             refresh_interval = max(1, min(60, int(conf.get("DISPLAY_REFRESH", REFRESH_INTERVAL))))
             backlight_timeout = max(0, min(3600, int(conf.get("DISPLAY_BACKLIGHT_TIMEOUT", BACKLIGHT_TIMEOUT))))
+            screensaver_enabled = conf.get("DISPLAY_SCREENSAVER", "yes").lower() == "yes"
             config_reload_time = now
 
         # Check for touch input
@@ -1045,11 +1055,17 @@ def main():
 
             needs_render = True
 
-        # Enter screensaver after idle timeout (0 = never)
-        if not screensaver_active and backlight_on and backlight_timeout > 0 and idle_time >= backlight_timeout:
-            screensaver_active = True
-            screensaver_tick = 0
-            log.info("Screensaver activated (idle timeout)")
+        # Enter screensaver or dim backlight after idle timeout (0 = never)
+        if backlight_on and backlight_timeout > 0 and idle_time >= backlight_timeout:
+            if screensaver_enabled and not screensaver_active:
+                screensaver_active = True
+                screensaver_tick = 0
+                needs_render = True
+                log.info("Screensaver activated (idle timeout)")
+            elif not screensaver_enabled:
+                set_backlight(False)
+                backlight_on = False
+                log.info("Backlight dimmed (idle timeout)")
 
         # Periodic refresh
         if now - last_render >= refresh_interval:
