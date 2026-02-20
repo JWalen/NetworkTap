@@ -140,7 +140,7 @@ async def wifi_status(user: Annotated[str, Depends(verify_credentials)]):
 async def wifi_scan(user: Annotated[str, Depends(verify_credentials)]):
     """Scan for available WiFi networks."""
     try:
-        rc, stdout, stderr = await _run_wifi(["scan"], timeout=30)
+        rc, stdout, stderr = await _run_wifi(["scan"], timeout=60)
         networks = []
         for line in stdout.strip().splitlines():
             line = line.strip()
@@ -572,7 +572,7 @@ async def wifi_capture_list(user: Annotated[str, Depends(verify_credentials)]):
 async def wifi_survey_run(user: Annotated[str, Depends(verify_credentials)]):
     """Run a WiFi site survey (scans for access points)."""
     try:
-        rc, stdout, stderr = await _run_wifi_survey(["survey"], timeout=30)
+        rc, stdout, stderr = await _run_wifi_survey(["survey"], timeout=90)
         success = rc == 0 and "complete" in stdout.lower()
         
         # Extract AP count from output
