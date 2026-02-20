@@ -100,6 +100,12 @@ class NetworkTapConfig:
     wifi_capture_max_files: int = 50
     wifi_capture_filter: str = ""
 
+    # FR202 Display
+    display_enabled: bool = True
+    display_refresh: int = 5
+    display_backlight_timeout: int = 120
+    display_default_page: str = "dashboard"
+
     # AI Features
     anomaly_detection_enabled: bool = True
     anomaly_sensitivity: str = "medium"
@@ -156,6 +162,10 @@ class NetworkTapConfig:
             wifi_capture_max_size_mb=int(raw.get("WIFI_CAPTURE_MAX_SIZE_MB", cls.wifi_capture_max_size_mb)),
             wifi_capture_max_files=int(raw.get("WIFI_CAPTURE_MAX_FILES", cls.wifi_capture_max_files)),
             wifi_capture_filter=raw.get("WIFI_CAPTURE_FILTER", cls.wifi_capture_filter),
+            display_enabled=raw.get("DISPLAY_ENABLED", "yes").lower() == "yes",
+            display_refresh=int(raw.get("DISPLAY_REFRESH", cls.display_refresh)),
+            display_backlight_timeout=int(raw.get("DISPLAY_BACKLIGHT_TIMEOUT", cls.display_backlight_timeout)),
+            display_default_page=raw.get("DISPLAY_DEFAULT_PAGE", cls.display_default_page),
             anomaly_detection_enabled=raw.get("ANOMALY_DETECTION_ENABLED", "yes").lower() == "yes",
             anomaly_sensitivity=raw.get("ANOMALY_SENSITIVITY", cls.anomaly_sensitivity),
             anomaly_interval=int(raw.get("ANOMALY_INTERVAL", cls.anomaly_interval)),

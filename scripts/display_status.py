@@ -36,8 +36,11 @@ log = logging.getLogger("display")
 # Display dimensions
 WIDTH = 320
 HEIGHT = 240
+
+# Defaults (overridden by config file)
 REFRESH_INTERVAL = 5  # seconds
 BACKLIGHT_TIMEOUT = 120  # seconds before dimming
+DEFAULT_PAGE = "dashboard"
 
 # Colors (RGB tuples)
 BG = (13, 17, 23)
@@ -893,17 +896,37 @@ def main():
     font = find_font(14)
     font_sm = find_font(11)
 
-    page_idx = 0
+    # Read display settings from config
+    conf = load_config()
+    refresh_interval = int(conf.get("DISPLAY_REFRESH", REFRESH_INTERVAL))
+    backlight_timeout = int(conf.get("DISPLAY_BACKLIGHT_TIMEOUT", BACKLIGHT_TIMEOUT))
+    default_page = conf.get("DISPLAY_DEFAULT_PAGE", DEFAULT_PAGE)
+
+    # Clamp to sane ranges
+    refresh_interval = max(1, min(60, refresh_interval))
+    backlight_timeout = max(0, min(3600, backlight_timeout))
+
+    # Set initial page from config
+    page_idx = PAGES.index(default_page) if default_page in PAGES else 0
     idle_time = 0.0
     backlight_on = True
     last_render = 0
     debounce_time = 0.0
+    config_reload_time = time.time()
 
-    log.info("Starting display loop (%d pages, refresh every %ds)", len(PAGES), REFRESH_INTERVAL)
+    log.info("Starting display loop (%d pages, refresh=%ds, backlight_timeout=%ds, default=%s)",
+             len(PAGES), refresh_interval, backlight_timeout, PAGES[page_idx])
 
     while running:
         now = time.time()
         needs_render = False
+
+        # Reload config every 60s to pick up settings changes from the web UI
+        if now - config_reload_time >= 60:
+            conf = load_config()
+            refresh_interval = max(1, min(60, int(conf.get("DISPLAY_REFRESH", REFRESH_INTERVAL))))
+            backlight_timeout = max(0, min(3600, int(conf.get("DISPLAY_BACKLIGHT_TIMEOUT", BACKLIGHT_TIMEOUT))))
+            config_reload_time = now
 
         # Check for touch input
         touched = read_touch(touch_line, smbus_mod)
@@ -924,14 +947,14 @@ def main():
 
             needs_render = True
 
-        # Auto-dim backlight after timeout
-        if backlight_on and idle_time >= BACKLIGHT_TIMEOUT:
+        # Auto-dim backlight after timeout (0 = never dim)
+        if backlight_on and backlight_timeout > 0 and idle_time >= backlight_timeout:
             set_backlight(False)
             backlight_on = False
             log.info("Backlight dimmed (idle timeout)")
 
         # Periodic refresh
-        if now - last_render >= REFRESH_INTERVAL:
+        if now - last_render >= refresh_interval:
             needs_render = True
 
         if needs_render:

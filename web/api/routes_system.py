@@ -1,5 +1,6 @@
 """System status and monitoring API endpoints."""
 
+import subprocess
 from pathlib import Path
 from typing import Annotated
 
@@ -96,6 +97,39 @@ async def identify_interface_port(
     """Blink the LED on a NIC port for physical identification."""
     result = identify_port(body.interface, body.duration)
     return result
+
+
+# Allowed services that can be restarted via the API
+RESTARTABLE_SERVICES = {
+    "networktap-capture",
+    "networktap-suricata",
+    "networktap-zeek",
+    "networktap-web",
+    "networktap-display",
+    "networktap-console",
+    "networktap-stats",
+}
+
+
+@router.post("/service/{service_name}/restart")
+async def restart_service(
+    service_name: str,
+    user: Annotated[str, Depends(require_admin)],
+):
+    """Restart a NetworkTap systemd service (requires admin)."""
+    if service_name not in RESTARTABLE_SERVICES:
+        return {"success": False, "message": f"Service not allowed: {service_name}"}
+
+    try:
+        result = subprocess.run(
+            ["systemctl", "restart", service_name],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode == 0:
+            return {"success": True, "message": f"{service_name} restarted"}
+        return {"success": False, "message": f"Failed: {result.stderr.strip()}"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 
 # Hardcoded log sources — no user-supplied paths

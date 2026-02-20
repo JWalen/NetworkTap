@@ -513,6 +513,7 @@ const Settings = (() => {
         { id: 'syslog',   label: 'Syslog',      icon: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
         { id: 'logging',  label: 'Logging',     icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6' },
         { id: 'wifi',     label: 'WiFi Capture', icon: 'M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01' },
+        { id: 'display',  label: 'Display',      icon: 'M2 3h20v14H2zM8 21h8M12 17v4' },
         { id: 'ai',       label: 'AI / Anomaly', icon: 'M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1H2a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2z' },
     ];
 
@@ -610,6 +611,17 @@ const Settings = (() => {
                     ${cfgInput('wifi_capture_max_files', 'Max Files', c.wifi_capture_max_files, 'number')}
                     ${cfgInput('wifi_capture_filter', 'BPF Filter', c.wifi_capture_filter, 'text', 'Empty = capture all')}
                 </div>`;
+            case 'display': return `
+                <p class="settings-section-desc">FR202 front panel display settings. Changes take effect on next display service restart.</p>
+                <div class="settings-form-grid">
+                    ${cfgToggle('display_enabled', 'Display Enabled', c.display_enabled)}
+                    ${cfgInput('display_refresh', 'Refresh Interval (sec)', c.display_refresh, 'number', 'How often the screen redraws (1-60)')}
+                    ${cfgInput('display_backlight_timeout', 'Backlight Timeout (sec)', c.display_backlight_timeout, 'number', '0 = never dim, 30-600 recommended')}
+                    ${cfgSelect('display_default_page', 'Default Page', c.display_default_page, ['dashboard', 'network', 'services', 'alerts', 'system'])}
+                </div>
+                <div style="margin-top:12px;">
+                    <button class="btn btn-secondary btn-sm" id="btn-restart-display">Restart Display Service</button>
+                </div>`;
             case 'ai': return `
                 <p class="settings-section-desc">AI assistant and anomaly detection settings.</p>
                 <div class="settings-form-grid">
@@ -692,8 +704,29 @@ const Settings = (() => {
                 container.querySelectorAll('.config-section').forEach(s => s.classList.remove('active'));
                 btn.classList.add('active');
                 container.querySelector(`.config-section[data-section="${btn.dataset.section}"]`).classList.add('active');
+                bindSectionButtons();
             });
         });
+
+        function bindSectionButtons() {
+            const restartBtn = document.getElementById('btn-restart-display');
+            if (restartBtn && !restartBtn.dataset.bound) {
+                restartBtn.dataset.bound = '1';
+                restartBtn.addEventListener('click', async () => {
+                    restartBtn.disabled = true;
+                    restartBtn.textContent = 'Restarting...';
+                    try {
+                        await api('/api/system/service/networktap-display/restart', { method: 'POST' });
+                        toast('Display service restarted', 'success');
+                    } catch (e) {
+                        toast('Failed to restart display: ' + e.message, 'error');
+                    } finally {
+                        restartBtn.disabled = false;
+                        restartBtn.textContent = 'Restart Display Service';
+                    }
+                });
+            }
+        }
 
         // Save handler
         document.getElementById('config-form').addEventListener('submit', async (e) => {

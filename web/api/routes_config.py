@@ -59,6 +59,11 @@ EDITABLE_SETTINGS: dict[str, dict] = {
     "wifi_capture_max_size_mb": {"key": "WIFI_CAPTURE_MAX_SIZE_MB", "type": "int"},
     "wifi_capture_max_files":   {"key": "WIFI_CAPTURE_MAX_FILES",   "type": "int"},
     "wifi_capture_filter":      {"key": "WIFI_CAPTURE_FILTER",      "type": "str"},
+    # FR202 Display
+    "display_enabled":            {"key": "DISPLAY_ENABLED",            "type": "bool"},
+    "display_refresh":            {"key": "DISPLAY_REFRESH",            "type": "int"},
+    "display_backlight_timeout":  {"key": "DISPLAY_BACKLIGHT_TIMEOUT",  "type": "int"},
+    "display_default_page":       {"key": "DISPLAY_DEFAULT_PAGE",       "type": "str"},
     # AI
     "anomaly_detection_enabled": {"key": "ANOMALY_DETECTION_ENABLED", "type": "bool"},
     "anomaly_sensitivity":      {"key": "ANOMALY_SENSITIVITY",      "type": "str"},
@@ -152,6 +157,11 @@ async def get_configuration(user: Annotated[str, Depends(verify_credentials)]):
         "wifi_capture_max_size_mb": config.wifi_capture_max_size_mb,
         "wifi_capture_max_files": config.wifi_capture_max_files,
         "wifi_capture_filter": config.wifi_capture_filter,
+        # FR202 Display
+        "display_enabled": config.display_enabled,
+        "display_refresh": config.display_refresh,
+        "display_backlight_timeout": config.display_backlight_timeout,
+        "display_default_page": config.display_default_page,
         # AI
         "anomaly_detection_enabled": config.anomaly_detection_enabled,
         "anomaly_sensitivity": config.anomaly_sensitivity,
