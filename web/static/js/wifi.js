@@ -527,6 +527,18 @@ const WiFi = (() => {
     async function renderPacketCapture(container) {
         container.innerHTML = `
             <div class="card">
+                <div class="card-header">Capture Interface</div>
+                <div class="stat-row" style="align-items:center;gap:0.75rem;">
+                    <span>WiFi Interface:</span>
+                    <select id="capture-iface-select" class="cfg-select" style="min-width:180px;">
+                        <option value="auto">Auto (first detected)</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" id="save-capture-iface-btn">Save</button>
+                </div>
+                <div id="capture-iface-info" style="margin-top:0.5rem;font-size:0.82rem;opacity:0.7;"></div>
+            </div>
+
+            <div class="card">
                 <div class="card-header">Capture Status</div>
                 <div id="capture-details">Loading...</div>
                 <div class="button-group" style="margin-top: 1rem;">
@@ -545,18 +557,82 @@ const WiFi = (() => {
             </div>
         `;
 
+        populateCaptureIfaceDropdown();
         loadCaptureStatus();
         loadCaptureFiles();
+
+        document.getElementById('save-capture-iface-btn').addEventListener('click', async () => {
+            const sel = document.getElementById('capture-iface-select');
+            if (!sel) return;
+            try {
+                const result = await api('/api/config', {
+                    method: 'POST',
+                    body: { wifi_capture_iface: sel.value }
+                });
+                toast(result.success ? 'Capture interface saved' : (result.message || 'Failed to save'), result.success ? 'success' : 'error');
+                if (result.success) setTimeout(loadCaptureStatus, 500);
+            } catch (e) {
+                toast('Failed to save: ' + e.message, 'error');
+            }
+        });
+    }
+
+    async function populateCaptureIfaceDropdown() {
+        const sel = document.getElementById('capture-iface-select');
+        const infoEl = document.getElementById('capture-iface-info');
+        if (!sel) return;
+        try {
+            const [ifaceData, configData] = await Promise.all([
+                api('/api/wifi/interfaces'),
+                api('/api/config')
+            ]);
+            const currentIface = configData.wifi_capture_iface || 'auto';
+
+            // Clear existing options except "auto"
+            sel.innerHTML = '<option value="auto">Auto (first detected)</option>';
+            (ifaceData.interfaces || []).forEach(iface => {
+                const opt = document.createElement('option');
+                opt.value = iface.name;
+                opt.textContent = iface.name + (iface.driver ? ` (${iface.driver})` : '') + (iface.monitor_supported ? ' - monitor OK' : ' - no monitor');
+                sel.appendChild(opt);
+            });
+            sel.value = currentIface;
+
+            // Show info about selected interface
+            const updateInfo = () => {
+                if (!infoEl) return;
+                const selected = sel.value;
+                if (selected === 'auto') {
+                    infoEl.textContent = 'Will use the first WiFi interface detected at capture time.';
+                    return;
+                }
+                const info = (ifaceData.interfaces || []).find(i => i.name === selected);
+                if (info && !info.monitor_supported) {
+                    infoEl.innerHTML = '<span style="color:#ffa800;">This interface does not support monitor mode.</span>';
+                } else if (info) {
+                    infoEl.innerHTML = '<span style="color:var(--accent);">Monitor mode supported.</span>';
+                } else {
+                    infoEl.textContent = '';
+                }
+            };
+            sel.addEventListener('change', updateInfo);
+            updateInfo();
+        } catch (e) {
+            if (infoEl) infoEl.textContent = 'Could not load WiFi interfaces.';
+        }
     }
 
     async function loadCaptureStatus() {
         try {
             const status = await api('/api/wifi/capture/status');
             let html = '';
+            if (status.capture_iface) {
+                html += `<div class="stat-row"><span>Capture Interface:</span><span><code>${status.capture_iface}</code></span></div>`;
+            }
             if (status.monitor_supported === false) {
                 html += `<div class="status-warning" style="background:rgba(255,170,0,0.1);border:1px solid rgba(255,170,0,0.3);border-radius:8px;padding:12px;margin-bottom:12px;color:#ffa800;font-size:0.85rem;">
-                    <strong>Monitor mode not supported</strong><br>
-                    The onboard WiFi chip does not support monitor mode, which is required for packet capture. Use a USB WiFi adapter that supports monitor mode (e.g. Alfa AWUS036ACH, TP-Link TL-WN722N v1).
+                    <strong>Monitor mode not supported on ${status.capture_iface || 'this interface'}</strong><br>
+                    Select a different interface above, or connect a USB WiFi adapter that supports monitor mode (e.g. Alfa AWUS036ACH).
                 </div>`;
             }
             html += `

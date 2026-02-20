@@ -94,6 +94,7 @@ class NetworkTapConfig:
     log_level: str = "INFO"
 
     # WiFi Capture
+    wifi_capture_iface: str = "auto"
     wifi_capture_enabled: bool = False
     wifi_capture_channel: int = 11
     wifi_capture_max_size_mb: int = 100
@@ -159,6 +160,7 @@ class NetworkTapConfig:
             syslog_format=raw.get("SYSLOG_FORMAT", cls.syslog_format),
             log_dir=raw.get("LOG_DIR", cls.log_dir),
             log_level=raw.get("LOG_LEVEL", cls.log_level),
+            wifi_capture_iface=raw.get("WIFI_CAPTURE_IFACE", cls.wifi_capture_iface),
             wifi_capture_enabled=raw.get("WIFI_CAPTURE_ENABLED", "no").lower() == "yes",
             wifi_capture_channel=int(raw.get("WIFI_CAPTURE_CHANNEL", cls.wifi_capture_channel)),
             wifi_capture_max_size_mb=int(raw.get("WIFI_CAPTURE_MAX_SIZE_MB", cls.wifi_capture_max_size_mb)),

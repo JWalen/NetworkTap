@@ -189,8 +189,16 @@ start_capture() {
         error "WiFi capture is disabled (WIFI_CAPTURE_ENABLED=no)"
     fi
     
-    # Detect interface
-    WIFI_IFACE=$(detect_wifi_interface) || error "No WiFi interface found"
+    # Determine interface: use config setting, fall back to auto-detect
+    if [[ -n "${WIFI_CAPTURE_IFACE:-}" && "${WIFI_CAPTURE_IFACE}" != "auto" ]]; then
+        WIFI_IFACE="$WIFI_CAPTURE_IFACE"
+        # Verify it exists
+        if [[ ! -d "/sys/class/net/$WIFI_IFACE" ]]; then
+            error "Configured capture interface '$WIFI_IFACE' not found"
+        fi
+    else
+        WIFI_IFACE=$(detect_wifi_interface) || error "No WiFi interface found"
+    fi
     log "WiFi interface: $WIFI_IFACE"
     
     # Check if already running

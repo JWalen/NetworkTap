@@ -30,6 +30,31 @@ def _find_wifi_iface() -> str | None:
     return None
 
 
+def _list_wifi_ifaces() -> list[str]:
+    """Return all wireless interface names on the system."""
+    wifi_dir = Path("/sys/class/net")
+    if not wifi_dir.exists():
+        return []
+    ifaces = []
+    for iface in sorted(wifi_dir.iterdir()):
+        if (iface / "wireless").exists() or (iface / "phy80211").exists():
+            ifaces.append(iface.name)
+    return ifaces
+
+
+def _get_capture_iface() -> str | None:
+    """Get the WiFi interface configured for capture (from config or auto-detect)."""
+    try:
+        from core.config import get_config
+        cfg = get_config()
+        configured = cfg.wifi_capture_iface
+        if configured and configured != "auto":
+            return configured
+    except Exception:
+        pass
+    return _find_wifi_iface()
+
+
 async def _run_wifi(args: list[str], timeout: int = 10) -> tuple[int, str, str]:
     """Run wifi.sh asynchronously to avoid blocking the event loop."""
     iface = _find_wifi_iface()
@@ -114,6 +139,42 @@ class APConfig(BaseModel):
     ssid: str
     passphrase: str
     channel: int = 11
+
+
+@router.get("/interfaces")
+async def wifi_interfaces(user: Annotated[str, Depends(verify_credentials)]):
+    """List all wireless interfaces on the system."""
+    ifaces = _list_wifi_ifaces()
+    result = []
+    for name in ifaces:
+        info = {"name": name, "monitor_supported": True}
+        # Check monitor mode support per-interface
+        try:
+            import re
+            proc = await asyncio.create_subprocess_exec(
+                "iw", "dev", name, "info",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            out, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
+            phy_match = re.search(r"wiphy\s+(\d+)", out.decode(errors="replace"))
+            if phy_match:
+                phy_proc = await asyncio.create_subprocess_exec(
+                    "iw", "phy", f"phy{phy_match.group(1)}", "info",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                phy_out, _ = await asyncio.wait_for(phy_proc.communicate(), timeout=5)
+                if "* monitor" not in phy_out.decode(errors="replace"):
+                    info["monitor_supported"] = False
+            # Get driver name
+            driver_path = Path(f"/sys/class/net/{name}/device/driver")
+            if driver_path.is_symlink():
+                info["driver"] = driver_path.resolve().name
+        except Exception:
+            pass
+        result.append(info)
+    return {"interfaces": result}
 
 
 @router.get("/status")
@@ -440,6 +501,8 @@ async def wifi_capture_status(user: Annotated[str, Depends(verify_credentials)])
     try:
         rc, stdout, stderr = await _run_wifi_capture(["status"], timeout=10)
 
+        capture_iface = _get_capture_iface()
+
         status_info = {
             "enabled": False,
             "running": False,
@@ -449,40 +512,31 @@ async def wifi_capture_status(user: Annotated[str, Depends(verify_credentials)])
             "file_count": 0,
             "total_size": None,
             "monitor_supported": True,
+            "capture_iface": capture_iface,
         }
 
-        # Check if monitor mode is supported on the WiFi interface
-        iface = _find_wifi_iface()
-        if iface:
+        # Check if monitor mode is supported on the capture interface
+        if capture_iface:
             try:
-                check = await asyncio.create_subprocess_exec(
-                    "iw", "phy",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                phy_out, _ = await asyncio.wait_for(check.communicate(), timeout=5)
-                # Get the phy for this iface
+                import re
                 info_proc = await asyncio.create_subprocess_exec(
-                    "iw", "dev", iface, "info",
+                    "iw", "dev", capture_iface, "info",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
                 info_out, _ = await asyncio.wait_for(info_proc.communicate(), timeout=5)
-                import re
                 phy_match = re.search(r"wiphy\s+(\d+)", info_out.decode(errors="replace"))
                 if phy_match:
-                    phy_name = f"phy{phy_match.group(1)}"
                     phy_info_proc = await asyncio.create_subprocess_exec(
-                        "iw", "phy", phy_name, "info",
+                        "iw", "phy", f"phy{phy_match.group(1)}", "info",
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE,
                     )
                     phy_info_out, _ = await asyncio.wait_for(phy_info_proc.communicate(), timeout=5)
-                    phy_info_text = phy_info_out.decode(errors="replace")
-                    if "* monitor" not in phy_info_text:
+                    if "* monitor" not in phy_info_out.decode(errors="replace"):
                         status_info["monitor_supported"] = False
             except Exception:
-                pass  # If check fails, assume supported
+                pass
         
         current_section = None
         for line in stdout.strip().splitlines():

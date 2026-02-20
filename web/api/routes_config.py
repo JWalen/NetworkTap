@@ -57,6 +57,7 @@ EDITABLE_SETTINGS: dict[str, dict] = {
     # Logging
     "log_level":                {"key": "LOG_LEVEL",                "type": "str"},
     # WiFi Capture
+    "wifi_capture_iface":       {"key": "WIFI_CAPTURE_IFACE",       "type": "str"},
     "wifi_capture_enabled":     {"key": "WIFI_CAPTURE_ENABLED",     "type": "bool"},
     "wifi_capture_channel":     {"key": "WIFI_CAPTURE_CHANNEL",     "type": "int"},
     "wifi_capture_max_size_mb": {"key": "WIFI_CAPTURE_MAX_SIZE_MB", "type": "int"},
@@ -157,6 +158,7 @@ async def get_configuration(user: Annotated[str, Depends(verify_credentials)]):
         # Logging
         "log_level": config.log_level,
         # WiFi Capture
+        "wifi_capture_iface": config.wifi_capture_iface,
         "wifi_capture_enabled": config.wifi_capture_enabled,
         "wifi_capture_channel": config.wifi_capture_channel,
         "wifi_capture_max_size_mb": config.wifi_capture_max_size_mb,
