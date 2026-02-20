@@ -172,7 +172,7 @@ status_ap() {
             echo ""
             echo "Connected Clients:"
             if command -v hostapd_cli &>/dev/null && [[ -e /var/run/hostapd/"$WIFI_IFACE" ]]; then
-                local clients=$(hostapd_cli -i "$WIFI_IFACE" all_sta 2>/dev/null | grep -c "^$" || echo "0")
+                local clients=$(hostapd_cli -i "$WIFI_IFACE" all_sta 2>/dev/null | grep -c "^[0-9a-fA-F][0-9a-fA-F]:" || echo "0")
                 echo "  Count: $clients"
             else
                 echo "  (hostapd_cli not available)"

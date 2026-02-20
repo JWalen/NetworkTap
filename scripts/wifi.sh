@@ -103,7 +103,7 @@ EOF
 
     # Wait for connection
     echo "[+] Waiting for connection..."
-    for i in $(seq 1 15); do
+    for i in $(seq 1 30); do
         if ip -4 addr show "$IFACE" | grep -q "inet "; then
             echo "[+] Connected!"
             do_status

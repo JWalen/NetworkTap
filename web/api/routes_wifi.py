@@ -70,7 +70,7 @@ async def _run_ap(args: list[str], timeout: int = 15) -> tuple[int, str, str]:
     return proc.returncode or 0, stdout.decode(errors="replace"), stderr.decode(errors="replace")
 
 
-async def _run_wifi_capture(args: list[str], timeout: int = 20) -> tuple[int, str, str]:
+async def _run_wifi_capture(args: list[str], timeout: int = 30) -> tuple[int, str, str]:
     """Run wifi_capture.sh asynchronously for monitor mode capture."""
     proc = await asyncio.create_subprocess_exec(
         WIFI_CAPTURE_SCRIPT, *args,
@@ -87,7 +87,7 @@ async def _run_wifi_capture(args: list[str], timeout: int = 20) -> tuple[int, st
     return proc.returncode or 0, stdout.decode(errors="replace"), stderr.decode(errors="replace")
 
 
-async def _run_wifi_survey(args: list[str], timeout: int = 30) -> tuple[int, str, str]:
+async def _run_wifi_survey(args: list[str], timeout: int = 60) -> tuple[int, str, str]:
     """Run wifi_survey.sh asynchronously for site surveys."""
     proc = await asyncio.create_subprocess_exec(
         WIFI_SURVEY_SCRIPT, *args,
@@ -188,6 +188,10 @@ async def wifi_connect(
     user: Annotated[str, Depends(verify_credentials)],
 ):
     """Connect to a WiFi network."""
+    if not body.ssid or len(body.ssid) > 32:
+        return {"success": False, "message": "SSID must be 1-32 characters"}
+    if len(body.psk) < 8 or len(body.psk) > 63:
+        return {"success": False, "message": "Password must be 8-63 characters"}
     try:
         rc, stdout, stderr = await _run_wifi(["connect", body.ssid, body.psk], timeout=30)
         success = rc == 0 and "Connected" in stdout
@@ -362,9 +366,15 @@ async def ap_configure(
     user: Annotated[str, Depends(verify_credentials)],
 ):
     """Update Access Point configuration (requires restart)."""
+    if not config.ssid or len(config.ssid) > 32:
+        return {"success": False, "message": "SSID must be 1-32 characters"}
+    if len(config.passphrase) < 8 or len(config.passphrase) > 63:
+        return {"success": False, "message": "Passphrase must be 8-63 characters"}
+    if config.channel < 1 or config.channel > 14:
+        return {"success": False, "message": "Channel must be 1-14"}
     try:
         from core.config import get_config
-        
+
         config_path = Path("/etc/networktap.conf")
         if not config_path.exists():
             return {"success": False, "message": "Config file not found"}

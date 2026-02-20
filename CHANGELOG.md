@@ -5,6 +5,21 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.36] - 2026-02-20
+
+### Fixed
+- **Site survey timeout**: Increased scan timeout from 15s to 30s (bash) and API timeout from 30s to 60s — fixes "command timed out" errors
+- **AP config form broken**: Added missing submit handler — "Update Configuration" button now works
+- **WiFi connect double-stringify bug**: Fixed `JSON.stringify` being called twice on connect request body
+- **WiFi connect timeout**: Increased DHCP wait from 15s to 30s for slow networks
+- **hostapd client count**: Fixed incorrect `grep` pattern that was counting empty lines instead of MAC addresses
+- **JSON SSID escaping**: SSIDs with quotes/special characters no longer break survey JSON output
+- **Input validation**: SSID (1-32 chars), password (8-63 chars), and channel (1-14) validated on both frontend and backend
+- **Monitor mode capture timeout**: Increased from 20s to 30s
+
+### Added
+- **WiFi AP config variables** in networktap.conf: WIFI_AP_SSID, WIFI_AP_PASSPHRASE, WIFI_AP_CHANNEL, WIFI_AP_IP, WIFI_AP_SUBNET
+
 ## [1.0.35] - 2026-02-20
 
 ### Fixed

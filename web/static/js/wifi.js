@@ -245,9 +245,12 @@ const WiFi = (() => {
 
         document.getElementById('connect-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const ssid = document.getElementById('connect-ssid').value;
+            const ssid = document.getElementById('connect-ssid').value.trim();
             const psk = document.getElementById('connect-psk').value;
             const btn = document.getElementById('connect-btn');
+
+            if (!ssid || ssid.length > 32) { toast('SSID must be 1-32 characters', 'error'); return; }
+            if (psk.length < 8 || psk.length > 63) { toast('Password must be 8-63 characters', 'error'); return; }
 
             btn.disabled = true;
             btn.textContent = 'Connecting...';
@@ -255,7 +258,7 @@ const WiFi = (() => {
             try {
                 const result = await api('/api/wifi/connect', {
                     method: 'POST',
-                    body: JSON.stringify({ ssid, psk })
+                    body: { ssid, psk },
                 });
 
                 toast(result.success ? result.message : 'Connection failed', result.success ? 'success' : 'error');
@@ -302,7 +305,7 @@ const WiFi = (() => {
         if (!listEl) return;
         const scanBtn = document.getElementById('scan-btn');
         if (scanBtn) { scanBtn.disabled = true; scanBtn.textContent = 'Scanning...'; }
-        listEl.innerHTML = '<div class="loading">Scanning... (this may take up to 30 seconds)</div>';
+        listEl.innerHTML = '<div class="loading">Scanning... (this may take up to 60 seconds)</div>';
 
         try {
             const result = await api('/api/wifi/scan');
@@ -412,6 +415,37 @@ const WiFi = (() => {
         `;
 
         loadAPStatus();
+
+        // AP config form submit handler
+        document.getElementById('ap-config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ssid = document.getElementById('ap-ssid').value.trim();
+            const password = document.getElementById('ap-password').value;
+            const channel = document.getElementById('ap-channel').value;
+
+            if (!ssid) { toast('SSID is required', 'error'); return; }
+            if (ssid.length > 32) { toast('SSID must be 32 characters or less', 'error'); return; }
+            if (password.length < 8 || password.length > 63) {
+                toast('Password must be 8-63 characters', 'error'); return;
+            }
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const result = await api('/api/wifi/ap/configure', {
+                    method: 'POST',
+                    body: { ssid, passphrase: password, channel: parseInt(channel) },
+                });
+                toast(result.message, result.success ? 'success' : 'error');
+            } catch (err) {
+                toast('Failed to save AP config: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Update Configuration';
+            }
+        });
     }
 
     async function loadAPStatus() {
@@ -621,7 +655,7 @@ const WiFi = (() => {
 
     window.WiFi.runSurvey = async function() {
         const resultsEl = document.getElementById('survey-results');
-        resultsEl.innerHTML = '<div class="loading">Running survey... (may take up to 30 seconds)</div>';
+        resultsEl.innerHTML = '<div class="loading">Running survey... (may take up to 60 seconds)</div>';
         
         try {
             const result = await api('/api/wifi/survey/run', { method: 'POST' });

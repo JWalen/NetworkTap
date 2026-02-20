@@ -78,9 +78,20 @@ scan_networks() {
     fi
 }
 
+json_escape() {
+    # Escape a string for safe JSON embedding
+    local s="$1"
+    s="${s//\\/\\\\}"    # backslash
+    s="${s//\"/\\\"}"    # double quote
+    s="${s//$'\n'/\\n}"  # newline
+    s="${s//$'\r'/\\r}"  # carriage return
+    s="${s//$'\t'/\\t}"  # tab
+    echo -n "$s"
+}
+
 parse_iw_scan() {
     local scan_output="$1"
-    
+
     # Parse iw scan output into JSON
     # Format: BSS MAC (on wlan0), SSID, freq, signal, security, etc.
     
@@ -98,10 +109,12 @@ parse_iw_scan() {
             # New AP entry - output previous if exists
             if [[ -n "$current_bss" ]]; then
                 [[ $ap_count -gt 0 ]] && echo ","
+                local escaped_ssid
+                escaped_ssid=$(json_escape "$current_ssid")
                 cat << EOF
   {
     "bssid": "$current_bss",
-    "ssid": "$current_ssid",
+    "ssid": "$escaped_ssid",
     "frequency": ${current_freq:-0},
     "channel": $(freq_to_channel "$current_freq"),
     "signal": ${current_signal:-0},
@@ -111,13 +124,13 @@ parse_iw_scan() {
 EOF
                 ((ap_count++))
             fi
-            
+
             current_bss="${BASH_REMATCH[1]}"
             current_ssid=""
             current_freq=""
             current_signal=""
             current_security="Open"
-            
+
         elif [[ "$line" =~ SSID:\ (.+) ]]; then
             current_ssid="${BASH_REMATCH[1]}"
         elif [[ "$line" =~ freq:\ ([0-9]+) ]]; then
@@ -134,10 +147,12 @@ EOF
     # Output last AP
     if [[ -n "$current_bss" ]]; then
         [[ $ap_count -gt 0 ]] && echo ","
+        local escaped_ssid
+        escaped_ssid=$(json_escape "$current_ssid")
         cat << EOF
   {
     "bssid": "$current_bss",
-    "ssid": "$current_ssid",
+    "ssid": "$escaped_ssid",
     "frequency": ${current_freq:-0},
     "channel": $(freq_to_channel "$current_freq"),
     "signal": ${current_signal:-0},
@@ -285,7 +300,7 @@ run_survey() {
     
     # Run scan — declare variable separately so exit code isn't masked by `local`
     local scan_output
-    scan_output=$(scan_networks "$WIFI_IFACE" 15) || error "WiFi scan returned no data"
+    scan_output=$(scan_networks "$WIFI_IFACE" 30) || error "WiFi scan returned no data"
 
     # Verify we got actual scan data (not just whitespace)
     if [[ -z "$(echo "$scan_output" | grep -E '^BSS |Address:')" ]]; then
