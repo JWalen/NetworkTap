@@ -5,6 +5,12 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.37] - 2026-02-20
+
+### Fixed
+- **Site survey still timing out**: Endpoint had hardcoded `timeout=30` that overrode the default — increased to 90s
+- **WiFi client scan timeout**: Increased from 30s to 60s
+
 ## [1.0.36] - 2026-02-20
 
 ### Fixed
