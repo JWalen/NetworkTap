@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NetworkTap is a network tap/monitoring appliance for the OnLogic FR201/FR202 (2-NIC Linux). It combines passive packet capture (tcpdump), IDS (Suricata + Zeek), and a FastAPI web dashboard. The FR202 variant includes a 3.5" ST7789V touch display for front-panel status. Target OS is Debian 12+/Ubuntu 22.04+/Raspberry Pi OS Bookworm.
 
-**Version:** 1.0.19
+**Version:** 1.0.20
 
 ## Common Commands
 

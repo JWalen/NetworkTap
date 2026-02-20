@@ -78,6 +78,19 @@ if ! grep -q "dtoverlay=i2c5" "$CONFIG_TXT"; then
     NEEDS_REBOOT=true
 fi
 
+# Fix power LED (some OS versions have wrong config)
+if grep -q "pwr_led_trigger=backlight" "$CONFIG_TXT"; then
+    echo "[+] Fixing power LED config..."
+    sed -i 's/dtparam=pwr_led_trigger=backlight/dtparam=pwr_led_trigger=default-on/' "$CONFIG_TXT"
+    sed -i 's/d[rt]param=pwr_led_activelow=on/dtparam=pwr_led_activelow=off/' "$CONFIG_TXT"
+    NEEDS_REBOOT=true
+elif ! grep -q "pwr_led_trigger" "$CONFIG_TXT"; then
+    echo "[+] Adding power LED config..."
+    echo "dtparam=pwr_led_trigger=default-on" >> "$CONFIG_TXT"
+    echo "dtparam=pwr_led_activelow=off" >> "$CONFIG_TXT"
+    NEEDS_REBOOT=true
+fi
+
 # ── Step 2: Ensure i2c-dev module loads at boot ──
 if [[ ! -f /etc/modules-load.d/i2c-dev.conf ]] || ! grep -q "i2c-dev" /etc/modules-load.d/i2c-dev.conf 2>/dev/null; then
     echo "[+] Configuring i2c-dev module to load at boot..."
