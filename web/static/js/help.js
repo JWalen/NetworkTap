@@ -143,7 +143,27 @@ const Help = (() => {
 
                     <div class="help-section">
                         <h4 style="color:var(--text-primary);margin:16px 0 8px;">⚙️ Settings</h4>
-                        <p>Manage your login credentials, user accounts (admin only), backup and restore configuration, and view system settings.</p>
+                        <p>Manage your login credentials, user accounts (admin only), backup and restore configuration, and system settings.</p>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li><strong>Authentication:</strong> Browser credentials and server password management</li>
+                            <li><strong>Users:</strong> Add/edit/delete users with admin or viewer roles</li>
+                            <li><strong>Backup & Restore:</strong> Create and restore configuration backups</li>
+                            <li><strong>Power:</strong> Reboot the appliance (double confirmation required)</li>
+                            <li><strong>Configuration:</strong> Edit all system settings including capture, retention, IDS, display, AI, and more</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">🖥️ FR202 Front Panel Display</h4>
+                        <p>The OnLogic FR202 has a 3.5" front panel touchscreen showing system status across 5 pages. Tap to cycle pages, auto-dims or shows screensaver after idle timeout.</p>
+                        <ul style="padding-left:24px;margin:8px 0;">
+                            <li><strong>Dashboard:</strong> Mode, IP, CPU/MEM/DISK bars, service status</li>
+                            <li><strong>Network:</strong> All interfaces with IP, state, speed, MAC</li>
+                            <li><strong>Services:</strong> All services with status and uptime</li>
+                            <li><strong>Alerts:</strong> Event counts, severity breakdown, top signatures</li>
+                            <li><strong>System:</strong> Hostname, uptime, temp, kernel, storage, version</li>
+                        </ul>
+                        <p>Configure display settings (refresh, timeout, screensaver, color) in <a href="#settings" style="color:var(--accent);">Settings</a> > Configuration > Display.</p>
                     </div>
                 </div>
             </div>
@@ -190,133 +210,127 @@ const Help = (() => {
     }
 
     function renderChangelogTab(container) {
-        container.innerHTML = `
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Version History</span>
-                </div>
-                <div class="changelog-content" style="line-height:1.7;color:var(--text-secondary);">
-                    
-                    <div class="changelog-version">
-                        <h3 style="color:var(--accent);margin:0 0 8px;">v1.1.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
-                        
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added - Complete WiFi Security Platform</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li><strong>WiFi Management UI</strong> - 7-tab interface: Overview, Client Mode, Access Point, Packet Capture, Site Survey, Wireless IDS, Client Tracking</li>
-                            <li><strong>Auto-Update UI</strong> - Check for updates, download/install with progress tracking, update history, one-click rollback</li>
-                            <li><strong>WiFi Access Point</strong> - Turn device into WPA2-PSK hotspot with DHCP server and client tracking</li>
-                            <li><strong>WiFi Packet Capture</strong> - Monitor mode 802.11 frame capture with channel selection</li>
-                            <li><strong>WiFi Site Survey</strong> - AP detection, signal analysis, channel utilization mapping</li>
-                            <li><strong>Wireless IDS</strong> - Rogue AP detection, known SSID whitelist, alert management</li>
-                            <li><strong>Client Tracking</strong> - Device inventory with MAC tracking, vendor ID, probe analysis</li>
-                            <li><strong>Auto-Update System</strong> - GitHub releases integration with SHA256 verification, backup, and rollback</li>
-                        </ul>
+        const versions = [
+            {
+                ver: '1.0.29', date: 'February 2026', title: 'Performance Optimizations',
+                sections: [{
+                    heading: 'Performance',
+                    items: [
+                        'Non-blocking CPU monitoring — no longer freezes the server for 500ms per poll',
+                        'Dashboard refresh slowed from 5s to 10s — halves load on CM4',
+                        'Alert fetch limit reduced from 200 to 20 on dashboard',
+                        'TTL caching on alerts API, capture status, Zeek conn.log parsing',
+                        'lru_cache on binary path lookups, port name resolution',
+                        'heapq.nlargest for efficient top-N queries',
+                        'Debounced filter inputs and sparkline bar batching',
+                    ]
+                }]
+            },
+            {
+                ver: '1.0.27', date: 'February 2026', title: 'NIC Swap & Reboot',
+                sections: [
+                    { heading: 'Changed', items: ['Swapped NIC assignments: eth1 = capture, eth0 = management'] },
+                    { heading: 'Added', items: ['Reboot button in Settings > Power with double confirmation', 'POST /api/system/reboot endpoint (admin only)'] },
+                ]
+            },
+            {
+                ver: '1.0.26', date: 'February 2026', title: 'Clearer Logo & Color Picker',
+                sections: [{
+                    heading: 'Changed',
+                    items: [
+                        'Larger clearer logo — "NETWORK" at 36px and "TAP" at 28px using bold font',
+                        'Logo moved up to fit 64px clock on screen',
+                        'Screensaver color picker in Settings > Configuration > Display with 9 preset swatches',
+                    ]
+                }]
+            },
+            {
+                ver: '1.0.23', date: 'February 2026', title: 'Screensaver & Display Settings',
+                sections: [{
+                    heading: 'Added',
+                    items: [
+                        'Boot splash — ASCII art "NETWORKTAP" logo on startup',
+                        'Screensaver mode — pulsing logo + large clock on idle timeout',
+                        'Screensaver on/off toggle in Settings > Configuration > Display',
+                        'Display settings in web UI — refresh interval, backlight timeout, default page',
+                    ]
+                }]
+            },
+            {
+                ver: '1.0.21', date: 'February 2026', title: 'Config Save Fix',
+                sections: [{ heading: 'Fixed', items: ['Fixed "failed to save" error when saving config (double JSON.stringify bug)'] }]
+            },
+            {
+                ver: '1.0.20', date: 'February 2026', title: 'Power LED Fix',
+                sections: [{ heading: 'Fixed', items: ['Auto-corrects FR202 power LED config in config.txt'] }]
+            },
+            {
+                ver: '1.0.17', date: 'February 2026', title: 'Multi-Page Touch Display',
+                sections: [{
+                    heading: 'Added',
+                    items: [
+                        '5-page touch display for FR202 front panel (Dashboard, Network, Services, Alerts, System)',
+                        'Touch navigation via ST1633i controller on I2C bus 5',
+                        'Page indicator dots, auto-dim backlight, tap to wake',
+                    ]
+                }]
+            },
+            {
+                ver: '1.0.9', date: 'February 2026', title: 'FR202 Display Support',
+                sections: [{ heading: 'Added', items: ['Initial FR202 front panel display support (ST7789V 3.5" TFT on SPI3)', 'Display service and setup script'] }]
+            },
+            {
+                ver: '1.1.0', date: 'February 2026', title: 'WiFi Security Platform',
+                sections: [{
+                    heading: 'Added',
+                    items: [
+                        'WiFi Management UI — 7-tab interface: Overview, Client, AP, Capture, Survey, IDS, Tracking',
+                        'Auto-Update system — GitHub releases with SHA256 verification, backup, rollback',
+                        'WiFi Access Point, Packet Capture, Site Survey, Wireless IDS, Client Tracking',
+                        '25 new WiFi + 9 update API endpoints',
+                    ]
+                }]
+            },
+            {
+                ver: '1.0.0', date: 'February 2026', title: 'AI Features',
+                sections: [{
+                    heading: 'Added',
+                    items: [
+                        'AI Anomaly Detection — volume anomalies, port/host scans, beaconing, DNS DGA/tunneling',
+                        'AI Assistant — on-device LLM (TinyLLaMA via Ollama)',
+                    ]
+                }]
+            },
+            {
+                ver: '0.3.0', date: 'February 2026', title: 'Packet Viewer',
+                sections: [{ heading: 'Added', items: ['In-browser packet inspection with protocol coloring', 'Wireshark-style display filters', 'TCP/UDP stream following'] }]
+            },
+            {
+                ver: '0.2.0', date: 'February 2026', title: 'Zeek Logs & Statistics',
+                sections: [{ heading: 'Added', items: ['Zeek Log Browser — conn, dns, http, ssl, files, notice, weird', 'Traffic statistics with connection trends and DNS analytics', 'PCAP filtering with BPF expressions'] }]
+            },
+            {
+                ver: '0.1.0', date: 'February 2026', title: 'Initial Release',
+                sections: [{ heading: 'Added', items: ['SPAN and Bridge network modes', 'tcpdump packet capture with rotation', 'Suricata IDS and Zeek integration', 'FastAPI web dashboard with real-time WebSocket alerts', 'Multi-user auth, TLS, backup/restore, syslog forwarding', 'systemd services, firewall hardening, health checks'] }]
+            },
+        ];
 
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Backend</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li>Added 25 new WiFi API endpoints across 6 feature categories</li>
-                            <li>Added 9 auto-update API endpoints</li>
-                            <li>New modules: wifi_analyzer.py, github_client.py, update_manager.py</li>
-                            <li>5 new shell scripts for WiFi and update management</li>
-                        </ul>
+        const html = versions.map((v, i) => {
+            const sects = v.sections.map(s =>
+                '<h4 style="color:var(--text-primary);margin:12px 0 6px;">' + s.heading + '</h4>' +
+                '<ul style="padding-left:24px;margin:4px 0;">' +
+                s.items.map(item => '<li>' + item + '</li>').join('') +
+                '</ul>'
+            ).join('');
+            const hr = i < versions.length - 1 ? '<hr style="border:none;border-top:1px solid var(--border-color);margin:20px 0;">' : '';
+            return '<div class="changelog-version">' +
+                '<h3 style="color:var(--accent);margin:0 0 4px;">v' + v.ver +
+                ' <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">' + v.date + ' &mdash; ' + v.title + '</span></h3>' +
+                sects + '</div>' + hr;
+        }).join('');
 
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Testing</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li>140+ tests executed, 100% pass rate on components, 90% on integration</li>
-                            <li>5 full end-to-end application test runs completed</li>
-                        </ul>
-                    </div>
-
-                    <hr style="border:none;border-top:1px solid var(--border-color);margin:24px 0;">
-
-                    <div class="changelog-version">
-                        <h3 style="color:var(--accent);margin:0 0 8px;">v1.0.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
-                        
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li><strong>AI Anomaly Detection</strong> - Lightweight statistical detection of traffic anomalies, port scans, host scans, beaconing (C2), and DNS threats (DGA, tunneling)</li>
-                            <li><strong>AI Assistant</strong> - On-device LLM (TinyLLaMA via Ollama) for natural language network analysis</li>
-                            <li><strong>AI Analysis Page</strong> - Dashboard for anomaly results, AI chat, and feature toggles</li>
-                        </ul>
-
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Fixed</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li><strong>Traffic Statistics</strong> - Fixed timezone bug where UTC timestamps were incorrectly compared</li>
-                        </ul>
-                    </div>
-
-                    <hr style="border:none;border-top:1px solid var(--border-color);margin:24px 0;">
-
-                    <div class="changelog-version">
-                        <h3 style="color:var(--accent);margin:0 0 8px;">v0.3.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
-                        
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li><strong>Packet Viewer</strong> - In-browser packet inspection with protocol coloring, layer details, hex dump</li>
-                            <li><strong>Display Filters</strong> - Wireshark-style filter syntax for packet viewing</li>
-                            <li><strong>Stream Following</strong> - View TCP/UDP stream content in ASCII or hex</li>
-                        </ul>
-                    </div>
-
-                    <hr style="border:none;border-top:1px solid var(--border-color);margin:24px 0;">
-
-                    <div class="changelog-version">
-                        <h3 style="color:var(--accent);margin:0 0 8px;">v0.2.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
-                        
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li><strong>Zeek Log Browser</strong> - Browse, filter, and search Zeek logs (conn, dns, http, ssl, files, notice, weird)</li>
-                            <li><strong>Enhanced Statistics</strong> - Connection trends chart, DNS analytics, service distribution</li>
-                            <li><strong>PCAP Filtering</strong> - BPF filter builder, preview matching packets, download filtered PCAPs</li>
-                            <li><strong>UI Modernization</strong> - Page transitions, skeleton loading, animated values, hover effects</li>
-                        </ul>
-                    </div>
-
-                    <hr style="border:none;border-top:1px solid var(--border-color);margin:24px 0;">
-
-                    <div class="changelog-version">
-                        <h3 style="color:var(--accent);margin:0 0 8px;">v0.1.0 <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
-                        
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Added</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li><strong>HTTPS/TLS Support</strong> - Self-signed certificate generation, optional Let's Encrypt integration</li>
-                            <li><strong>Multi-user Authentication</strong> - Role-based access control (admin/viewer), PBKDF2 password hashing</li>
-                            <li><strong>Traffic Statistics</strong> - Bandwidth charts, protocol distribution, top talkers, top ports from Zeek data</li>
-                            <li><strong>PCAP Search/Preview</strong> - Search packets by IP, port, protocol; view connection summaries</li>
-                            <li><strong>Suricata Rules Management</strong> - Browse, search, enable/disable rules; threshold configuration; live reload</li>
-                            <li><strong>Backup & Restore</strong> - Configuration backup/restore with automatic pre-restore snapshots</li>
-                            <li><strong>Syslog Forwarding</strong> - Remote syslog/SIEM integration (UDP/TCP, syslog/JSON format)</li>
-                            <li><strong>Report Export</strong> - CSV, HTML, and JSON report generation for alerts and statistics</li>
-                            <li><strong>Dark/Light Theme</strong> - Toggle between themes with preference persistence</li>
-                            <li><strong>Mobile Responsive</strong> - Improved touch targets, hamburger menu, responsive layouts</li>
-                        </ul>
-                    </div>
-
-                    <hr style="border:none;border-top:1px solid var(--border-color);margin:24px 0;">
-
-                    <div class="changelog-version">
-                        <h3 style="color:var(--accent);margin:0 0 8px;">v0.0.1-beta <span style="color:var(--text-muted);font-weight:normal;font-size:0.85rem;">February 2026</span></h3>
-                        
-                        <h4 style="color:var(--text-primary);margin:16px 0 8px;">Initial Release</h4>
-                        <ul style="padding-left:24px;margin:8px 0;">
-                            <li><strong>Operating modes</strong> - SPAN/mirror and inline transparent bridge</li>
-                            <li><strong>Packet capture</strong> - tcpdump with time-based rotation, file limits, BPF filtering, and gzip compression</li>
-                            <li><strong>Suricata IDS</strong> - af-packet capture, EVE JSON logging, community-id, automatic rule updates</li>
-                            <li><strong>Zeek IDS</strong> - JSON logging, standard protocol analyzers, connection tracking</li>
-                            <li><strong>FastAPI web backend</strong> - REST API for system status, capture control, alerts, configuration</li>
-                            <li><strong>WebSocket</strong> - Real-time Suricata alert streaming to the dashboard</li>
-                            <li><strong>Web dashboard</strong> - Dark-themed SPA with Dashboard, Captures, Alerts, Network, PCAPs, Settings pages</li>
-                            <li><strong>Authentication</strong> - HTTP Basic auth for all API endpoints</li>
-                            <li><strong>systemd services</strong> - Units for capture, Suricata, Zeek, web dashboard, and storage cleanup</li>
-                            <li><strong>Storage management</strong> - Automatic pcap retention enforcement, emergency cleanup on low disk</li>
-                            <li><strong>Firewall hardening</strong> - UFW rules scoped to management interface</li>
-                            <li><strong>Health check script</strong> - Validates services, interfaces, disk space, and memory</li>
-                            <li><strong>Installer/Uninstaller</strong> - Automated setup and clean removal</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        `;
+        container.innerHTML = '<div class="card"><div class="card-header"><span class="card-title">Version History</span></div>' +
+            '<div class="changelog-content" style="line-height:1.6;color:var(--text-secondary);">' + html + '</div></div>';
     }
 
     return { render };
