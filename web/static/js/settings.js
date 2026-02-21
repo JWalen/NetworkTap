@@ -11,7 +11,11 @@ const Settings = (() => {
             const stored = localStorage.getItem(CRED_KEY);
             if (stored) return JSON.parse(stored);
         } catch {}
-        return { user: 'admin', pass: 'networktap' };
+        return null;
+    }
+
+    function hasCredentials() {
+        return getCredentials() !== null;
     }
 
     function saveCredentials(user, pass) {
@@ -939,6 +943,8 @@ const Settings = (() => {
     return {
         render,
         getCredentials,
+        hasCredentials,
+        saveCredentials,
         editUser,
         deleteUser,
         closeModal,

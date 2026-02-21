@@ -196,24 +196,60 @@ def delete_pcap_files(filenames: list[str]) -> dict:
 
 
 def delete_all_pcap_files() -> dict:
-    """Delete all pcap files in the capture directory."""
+    """Delete all pcap files in the capture directory.
+
+    Stops any active capture first, deletes files, then optionally restarts.
+    """
+    import subprocess
+
     config = get_config()
     capture_dir = Path(config.capture_dir)
 
     if not capture_dir.exists():
         return {"success": False, "message": "Capture directory not found"}
 
+    # Stop capture so files aren't held open / recreated immediately
+    capture_was_running = False
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", "networktap-capture"],
+            capture_output=True, text=True, timeout=5,
+        )
+        capture_was_running = result.stdout.strip() == "active"
+        if capture_was_running:
+            subprocess.run(
+                ["systemctl", "stop", "networktap-capture"],
+                timeout=15, check=False,
+            )
+            import time
+            time.sleep(1)
+    except Exception as e:
+        logger.warning("Failed to check/stop capture service: %s", e)
+
     deleted = 0
     errors = []
 
-    for f in capture_dir.rglob("*.pcap*"):
-        try:
-            f.unlink()
-            deleted += 1
-        except OSError as e:
-            errors.append(f"{f.name}: {e}")
+    # Match all capture-related files (pcap, pcap.gz, pcap1, cap, etc.)
+    for pattern in ("*.pcap*", "*.cap", "*.cap.*"):
+        for f in capture_dir.rglob(pattern):
+            if f.is_file():
+                try:
+                    f.unlink()
+                    deleted += 1
+                except OSError as e:
+                    errors.append(f"{f.name}: {e}")
 
     logger.info("Deleted %d pcap files", deleted)
+
+    # Restart capture if it was running
+    if capture_was_running:
+        try:
+            subprocess.run(
+                ["systemctl", "start", "networktap-capture"],
+                timeout=15, check=False,
+            )
+        except Exception:
+            pass
 
     if errors:
         return {
@@ -221,4 +257,6 @@ def delete_all_pcap_files() -> dict:
             "message": f"Deleted {deleted} files, {len(errors)} errors",
             "errors": errors,
         }
+    if deleted == 0:
+        return {"success": True, "message": "No capture files found to delete"}
     return {"success": True, "message": f"Deleted {deleted} files"}

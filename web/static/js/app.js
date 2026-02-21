@@ -29,59 +29,171 @@ const App = (() => {
             // Load theme preference
             loadTheme();
 
-            // Navigation
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const page = item.dataset.page;
-                    navigate(page);
+            // Setup login form
+            setupLogin();
+
+            // Check if already authenticated
+            if (Settings.hasCredentials()) {
+                checkAuth().then(ok => {
+                    if (ok) {
+                        showApp();
+                    } else {
+                        showLogin();
+                    }
                 });
-            });
-
-            // Sidebar toggle (mobile)
-            const sidebarToggle = document.getElementById('sidebar-toggle');
-            if (sidebarToggle) {
-                sidebarToggle.addEventListener('click', () => {
-                    document.getElementById('sidebar').classList.toggle('open');
-                });
+            } else {
+                showLogin();
             }
-
-            // Close sidebar on content click (mobile)
-            const content = document.querySelector('.content');
-            if (content) {
-                content.addEventListener('click', () => {
-                    document.getElementById('sidebar').classList.remove('open');
-                });
-            }
-
-            // Theme toggle
-            const themeToggle = document.getElementById('theme-toggle');
-            if (themeToggle) {
-                themeToggle.addEventListener('click', toggleTheme);
-            }
-
-            // Hash-based routing
-            window.addEventListener('hashchange', () => {
-                const page = location.hash.slice(1) || 'dashboard';
-                navigate(page, false);
-            });
-
-            // Connect WebSocket
-            WS.connect();
-
-            // Initial navigation
-            const page = location.hash.slice(1) || 'dashboard';
-            navigate(page, false);
-
-            // Start global status polling
-            updateGlobalStatus();
-            setInterval(updateGlobalStatus, 10000);
 
             console.log('✓ NetworkTap initialized successfully');
         } catch (error) {
             console.error('Failed to initialize NetworkTap:', error);
-            toast('Failed to initialize application', 'error');
+            showLogin();
         }
+    }
+
+    function setupLogin() {
+        const form = document.getElementById('login-form');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const user = document.getElementById('login-user').value.trim();
+                const pass = document.getElementById('login-pass').value;
+                const btn = document.getElementById('login-btn');
+                const errorEl = document.getElementById('login-error');
+
+                if (!user || !pass) return;
+
+                btn.disabled = true;
+                btn.textContent = 'Signing in...';
+                errorEl.hidden = true;
+
+                try {
+                    // Test credentials against the API
+                    const resp = await fetch('/api/system/status', {
+                        headers: { 'Authorization': 'Basic ' + btoa(user + ':' + pass) }
+                    });
+
+                    if (resp.ok) {
+                        Settings.saveCredentials(user, pass);
+                        showApp();
+                    } else if (resp.status === 401) {
+                        errorEl.textContent = 'Invalid username or password.';
+                        errorEl.hidden = false;
+                    } else {
+                        errorEl.textContent = 'Server error. Please try again.';
+                        errorEl.hidden = false;
+                    }
+                } catch (err) {
+                    errorEl.textContent = 'Cannot connect to server.';
+                    errorEl.hidden = false;
+                }
+
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+            });
+        }
+
+        // Logout button
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                logout();
+            });
+        }
+    }
+
+    async function checkAuth() {
+        const creds = Settings.getCredentials();
+        if (!creds) return false;
+        try {
+            const resp = await fetch('/api/system/status', {
+                headers: { 'Authorization': 'Basic ' + btoa(creds.user + ':' + creds.pass) }
+            });
+            return resp.ok;
+        } catch {
+            return false;
+        }
+    }
+
+    function showLogin() {
+        document.getElementById('login-overlay').classList.remove('hidden');
+        document.querySelector('.sidebar').style.display = 'none';
+        document.querySelector('.main-content').style.display = 'none';
+        // Focus username field
+        setTimeout(() => {
+            const userInput = document.getElementById('login-user');
+            if (userInput) userInput.focus();
+        }, 100);
+    }
+
+    function showApp() {
+        document.getElementById('login-overlay').classList.add('hidden');
+        document.querySelector('.sidebar').style.display = '';
+        document.querySelector('.main-content').style.display = '';
+        initApp();
+    }
+
+    function logout() {
+        localStorage.removeItem('networktap_creds');
+        // Disconnect websocket
+        try { WS.disconnect(); } catch {}
+        // Clear any intervals
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+        showLogin();
+    }
+
+    function initApp() {
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = item.dataset.page;
+                navigate(page);
+            });
+        });
+
+        // Sidebar toggle (mobile)
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('open');
+            });
+        }
+
+        // Close sidebar on content click (mobile)
+        const content = document.querySelector('.content');
+        if (content) {
+            content.addEventListener('click', () => {
+                document.getElementById('sidebar').classList.remove('open');
+            });
+        }
+
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', toggleTheme);
+        }
+
+        // Hash-based routing
+        window.addEventListener('hashchange', () => {
+            const page = location.hash.slice(1) || 'dashboard';
+            navigate(page, false);
+        });
+
+        // Connect WebSocket
+        WS.connect();
+
+        // Initial navigation
+        const page = location.hash.slice(1) || 'dashboard';
+        navigate(page, false);
+
+        // Start global status polling
+        updateGlobalStatus();
+        setInterval(updateGlobalStatus, 10000);
     }
 
     function navigate(page, pushHash = true) {
@@ -167,7 +279,7 @@ const App = (() => {
         }
     }
 
-    return { init, navigate, setRefresh };
+    return { init, navigate, setRefresh, logout };
 })();
 
 /* ── API Helper ─────────────────────────────────────── */
@@ -175,6 +287,10 @@ let activeRequests = 0;
 
 async function api(url, options = {}) {
     const config = Settings.getCredentials();
+    if (!config) {
+        App.logout();
+        throw new Error('Not authenticated');
+    }
     const headers = {
         'Authorization': 'Basic ' + btoa(config.user + ':' + config.pass),
         ...options.headers,
@@ -193,7 +309,8 @@ async function api(url, options = {}) {
         const resp = await fetch(url, { ...options, headers });
 
         if (resp.status === 401) {
-            toast('Authentication failed. Check credentials in Settings.', 'error');
+            toast('Session expired. Please sign in again.', 'error');
+            App.logout();
             throw new Error('Unauthorized');
         }
 

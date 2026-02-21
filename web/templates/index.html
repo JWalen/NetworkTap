@@ -11,13 +11,34 @@
     <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg">
 </head>
 <body>
+    <!-- Login Screen -->
+    <div class="login-overlay" id="login-overlay">
+        <div class="login-card">
+            <img src="/static/img/logo.svg" alt="NetworkTap" class="login-logo">
+            <h1 class="login-title">NetworkTap</h1>
+            <p class="login-subtitle">Network Monitoring Appliance</p>
+            <form id="login-form" autocomplete="on">
+                <div class="login-field">
+                    <label for="login-user">Username</label>
+                    <input type="text" id="login-user" name="username" autocomplete="username" placeholder="admin" required>
+                </div>
+                <div class="login-field">
+                    <label for="login-pass">Password</label>
+                    <input type="password" id="login-pass" name="password" autocomplete="current-password" placeholder="Password" required>
+                </div>
+                <div id="login-error" class="login-error" hidden></div>
+                <button type="submit" class="btn btn-primary login-btn" id="login-btn">Sign In</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <img src="/static/img/logo.svg" alt="NetworkTap" class="sidebar-logo">
             <div class="sidebar-title-block">
                 <span class="sidebar-title">NetworkTap</span>
-                <span class="sidebar-version">v1.0.43</span>
+                <span class="sidebar-version">v1.0.44</span>
             </div>
         </div>
         <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
@@ -148,6 +169,14 @@
                 <span class="mode-dot"></span>
                 <span class="mode-text">SPAN Mode</span>
             </div>
+            <button class="logout-btn" id="logout-btn" title="Sign out">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                <span>Sign Out</span>
+            </button>
         </div>
     </aside>
 

@@ -5,6 +5,17 @@ All notable changes to NetworkTap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.44] - 2026-02-20
+
+### Added
+- **Login page**: Full-screen login screen shown on app load — must authenticate before accessing dashboard
+- **Sign Out button**: In sidebar footer, clears session and returns to login screen
+- **Auto-logout**: 401 responses from API automatically redirect to login page
+
+### Fixed
+- **Delete All captures**: Now stops active capture before deleting files and restarts after — prevents files being held open or immediately recreated by tcpdump
+- **Delete All feedback**: Shows "No capture files found" instead of "Deleted 0 files" when directory is empty
+
 ## [1.0.43] - 2026-02-20
 
 ### Added
