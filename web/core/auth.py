@@ -8,16 +8,25 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from core.config import get_config
 
-security = HTTPBasic()
+security = HTTPBasic(auto_error=False)
 
 
 def verify_credentials(
-    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+    credentials: Annotated[HTTPBasicCredentials | None, Depends(security)],
 ) -> str:
     """Verify HTTP Basic credentials against users database or config.
 
     Returns the username if valid, raises 401 otherwise.
+    Note: WWW-Authenticate header is intentionally omitted to prevent the
+    browser from showing its native Basic Auth dialog — the SPA has its own
+    login form.
     """
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
     # Try user database first
     try:
         from core.user_manager import authenticate, has_users
@@ -46,14 +55,13 @@ def verify_credentials(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic"},
         )
 
     return credentials.username
 
 
 def require_admin(
-    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+    credentials: Annotated[HTTPBasicCredentials | None, Depends(security)],
 ) -> str:
     """Verify credentials and require admin role.
     
