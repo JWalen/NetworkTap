@@ -21,21 +21,16 @@ def verify_credentials(
     # Try user database first
     try:
         from core.user_manager import authenticate, has_users
-        
+
         if has_users():
             user = authenticate(credentials.username, credentials.password)
             if user is not None:
                 return user.username
-            
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid credentials",
-                headers={"WWW-Authenticate": "Basic"},
-            )
+            # Database auth failed — fall through to config check
     except ImportError:
         pass
-    
-    # Fall back to config-based auth
+
+    # Fall back to config-based auth (always available as emergency admin)
     config = get_config()
 
     username_ok = secrets.compare_digest(
